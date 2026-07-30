@@ -389,9 +389,14 @@
                     <h3 class="text-2xl font-bold text-white" id="modalName">Name</h3>
                     <p class="text-purple-400 text-sm font-medium" id="modalTeam">Team</p>
                 </div>
-                <button class="text-zinc-400 hover:text-white bg-zinc-800 p-2.5 rounded-xl" onclick="closeReceiptModal()">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="deleteReceiptBtn" class="text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/80 p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 border border-rose-500/20" title="Delete Receipt">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                    <button class="text-zinc-400 hover:text-white bg-zinc-800 p-2.5 rounded-xl" onclick="closeReceiptModal()">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
             </div>
             
             <div class="grid grid-cols-2 gap-4 mb-6">
@@ -425,6 +430,24 @@
     <!-- Toast Notification -->
     <div id="toast" class="glass-card !bg-zinc-900 !text-white font-bold shadow-xl border !border-purple-500/50">Update Successful</div>
 
+    <!-- Custom Confirm Modal -->
+    <div id="confirmModal" class="fixed inset-0 z-[2000] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="closeConfirmModal()"></div>
+        <div class="relative w-full max-w-sm glass-card rounded-3xl p-6 flex flex-col text-center shadow-2xl border-rose-500/30">
+            <div class="w-12 h-12 bg-rose-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-rose-400">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2 text-white" id="confirmModalTitle">Are you sure?</h3>
+            <p class="text-zinc-400 text-sm mb-6" id="confirmModalMsg">This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 rounded-xl transition" onclick="closeConfirmModal()">Cancel</button>
+                <button class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-xl transition flex justify-center items-center gap-2" id="confirmModalActionBtn">
+                    <span>Delete</span> <div class="loader !w-4 !h-4 !ml-0 !mr-0 border-white" id="confirmLoader" style="display:none; border-bottom-color: transparent;"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
 <script>
         // ==========================================
         // CONFIGURATION (SUPABASE + GOOGLE APPS SCRIPT)
@@ -455,6 +478,10 @@
             },
             async insert(table, data) {
                 const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, { method: 'POST', headers: sb._h({ 'Prefer': 'return=minimal' }), body: JSON.stringify(data) });
+                if (!res.ok) throw new Error(await res.text());
+            },
+            async delete(table, query) {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, { method: 'DELETE', headers: sb._h() });
                 if (!res.ok) throw new Error(await res.text());
             }
         };
@@ -855,6 +882,8 @@
             document.getElementById('modalReason').textContent = r.reason;
             document.getElementById('modalAttendees').textContent = r.attendees || "N/A";
             
+            document.getElementById('deleteReceiptBtn').onclick = () => promptDeleteReceipt(r.id);
+            
             const photoArea = document.getElementById('modalPhotos');
             
             let parsedPhotos = [];
@@ -1021,6 +1050,72 @@
             }
             t.style.display = 'block'; 
             setTimeout(() => t.style.display = 'none', 3500); 
+        }
+
+        // --- CONFIRMATION & DELETION ---
+        let confirmActionCallback = null;
+        function openConfirmModal(title, msg, btnText, callback) {
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalMsg').innerHTML = msg;
+            document.getElementById('confirmModalActionBtn').querySelector('span').textContent = btnText;
+            confirmActionCallback = callback;
+            document.getElementById('confirmModal').style.display = 'flex';
+            document.getElementById('confirmModal').classList.remove('hidden');
+        }
+        
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            document.getElementById('confirmModal').classList.add('hidden');
+            confirmActionCallback = null;
+        }
+        
+        document.getElementById('confirmModalActionBtn').addEventListener('click', () => {
+            if (confirmActionCallback) confirmActionCallback();
+        });
+
+        function promptDeleteReceipt(receiptId) {
+            openConfirmModal(
+                "Delete Receipt?",
+                "Are you sure you want to permanently delete this receipt record?<br><br><span class='text-xs text-rose-400'>Note: Attached files will remain in Google Drive, but the record will be removed from the system.</span>",
+                "Delete",
+                () => executeDeleteReceipt(receiptId)
+            );
+        }
+
+        async function executeDeleteReceipt(receiptId) {
+            const btn = document.getElementById('confirmModalActionBtn');
+            const loader = document.getElementById('confirmLoader');
+            btn.disabled = true; loader.style.display = 'block';
+
+            try {
+                await sb.delete('receipts', `id=eq.${encodeURIComponent(receiptId)}`);
+                
+                // Remove from local cache
+                receipts = receipts.filter(r => r.id !== receiptId);
+                
+                showToast("Receipt deleted successfully.");
+                closeConfirmModal();
+                closeReceiptModal();
+                renderDashboard();
+            } catch (e) {
+                showToast("Failed to delete: " + e.message, true);
+            } finally {
+                btn.disabled = false; loader.style.display = 'none';
+            }
+        }
+
+        function fireConfetti() {
+            const duration = 3 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                const particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }, colors: ['#0A84FF', '#BF5AF2', '#34d399'] }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }, colors: ['#0A84FF', '#BF5AF2', '#34d399'] }));
+            }, 250);
         }
 
         window.onload = init;
