@@ -548,12 +548,13 @@
             Object.keys(formConfig).forEach(key => {
                 const el = document.getElementById(key);
                 const lbl = document.getElementById(`lbl_${key}`);
-                if(lbl) lbl.textContent = formConfig[key].label;
-                if(el && el.tagName !== 'SELECT') el.placeholder = formConfig[key].placeholder;
+                if(lbl) lbl.textContent = formConfig[key].label || '';
+                if(el && el.tagName !== 'SELECT') el.placeholder = formConfig[key].placeholder || '';
             });
             
             const teamSelect = document.getElementById('reqTeam');
-            teamSelect.innerHTML = `<option value="">${formConfig.reqTeam.placeholder}</option>` + 
+            const placeholderText = (formConfig.reqTeam && formConfig.reqTeam.placeholder) ? formConfig.reqTeam.placeholder : '';
+            teamSelect.innerHTML = `<option value="" disabled selected>${placeholderText}</option>` + 
                                    TEAMS.map(t => `<option value="${t}">${t}</option>`).join('');
         }
 
