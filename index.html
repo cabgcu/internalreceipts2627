@@ -1,1 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>CAB Receipt Submission</title>
 
+    <!-- Fix for missing favicon 404 error -->
+    <link rel="icon" href="data:," />
+
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- SheetJS for Excel Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
+                    colors: {
+                        zinc: {
+                            900: '#18181b',
+                            950: '#09090b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #71717a; }
+        .no-save-pass { -webkit-text-security: disc !important; text-security: disc !important; }
+        html { background-color: #09090b; }
+
+        .glass-card {
+            background: rgba(9, 9, 11, 0.65);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .primary-card {
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.05);
+        }
+
+        .view { display: none; opacity: 0; transform: translateY(15px); transition: 0.4s ease; width: 100%; }
+        .view.active { display: block; opacity: 1; transform: translateY(0); }
+
+        .control-item {
+            width: 100%;
+            background: #18181b;
+            border: 1px solid #27272a;
+            color: #ffffff;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+        }
+        @media (min-width: 640px) {
+            .control-item { padding: 1rem 1.25rem; }
+        }
+        @media (hover: hover) {
+            .control-item:hover {
+                border-color: rgba(168, 85, 247, 0.4);
+                transform: translateY(-2px);
+                box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+            }
+        }
+        .control-item::placeholder { color: rgba(255, 255, 255, 0.5); }
+        .control-item:focus {
+            border-color: #a855f7;
+            background: #27272a;
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
+        }
+
+        select.control-item {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 16px;
+            padding-right: 2.5rem;
+        }
+
+        select[multiple].control-item {
+            background-image: none;
+            padding-right: 1rem;
+            min-height: 80px;
+        }
+        select[multiple].control-item option {
+            padding: 0.5rem;
+            margin-bottom: 2px;
+            border-radius: 0.25rem;
+        }
+        select[multiple].control-item option:checked {
+            background: linear-gradient(to right, #2563eb, #9333ea) !important;
+            color: white;
+        }
+
+        select.control-item option { background: #18181b; color: white; }
+        input[type="date"].control-item {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input[type="date"].control-item::-webkit-date-and-time-value { text-align: left; }
+        input[type="date"].control-item::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; margin-left: auto; }
+
+        .form-label { display: block; margin-bottom: 0.75rem; color: #ffffff; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.4; }
+        .form-group { margin-bottom: 1.5rem; }
+        .required-mark { color: #f472b6; margin-left: 2px; }
+
+        .loader { display: none; width: 18px; height: 18px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rotation 1s linear infinite; margin-left: 10px; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes savedFade { 0% { opacity:0; transform:translateY(4px); } 15% { opacity:1; transform:translateY(0); } 75% { opacity:1; } 100% { opacity:0; } }
+        .saved-flash { animation: savedFade 2s ease forwards; }
+
+        #toast { position: fixed; bottom: max(30px, calc(env(safe-area-inset-bottom, 0px) + 15px)); left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; padding: 16px 24px; border-radius: 100px; z-index: 2000; display: none; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+
+        body {
+            background-color: #07060f;
+            background-image: url('https://i.imgur.com/4DfFmUh.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+
+        /* Receipt-photo dropzone */
+        .drop-zone {
+            border: 2px dashed #3f3f46;
+            border-radius: 1rem;
+            padding: 1.75rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            background: #18181b;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #a855f7;
+            background: #27272a;
+        }
+        .drop-zone.dragover { box-shadow: 0 0 15px rgba(168, 85, 247, 0.2); }
+
+        .photo-thumb {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 0.65rem;
+            overflow: hidden;
+            border: 1px solid #27272a;
+            background: #18181b;
+        }
+        .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .photo-thumb .remove-photo-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 22px;
+            height: 22px;
+            border-radius: 9999px;
+            background: rgba(9,9,11,0.85);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #fca5a5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .amount-input-wrap { position: relative; }
+        .amount-input-wrap .dollar-sign { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.5); font-weight: 600; pointer-events: none; }
+        .amount-input-wrap input { padding-left: 1.75rem !important; }
+
+        .team-chip { display: inline-flex; align-items: center; gap: 0.35rem; background: #18181b; border: 1px solid #27272a; color: #e4e4e7; font-size: 0.7rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 9999px; }
+    </style>
+</head>
+<body class="text-zinc-100 min-h-[100dvh] relative overflow-x-hidden selection:bg-purple-500/30 font-sans">
+
+    <!-- Dark Overlay -->
+    <div class="fixed inset-0 bg-zinc-950/70 z-[-1]"></div>
+
+    <main class="relative z-10 w-full max-w-7xl mx-auto px-3 py-4 sm:p-8 min-h-[100dvh] flex flex-col">
+
+        <div class="flex-1 w-full flex flex-col items-center justify-center py-8 sm:py-10">
+
+            <!-- ================= PUBLIC RECEIPT SUBMISSION FORM ================= -->
+            <div id="formView" class="view active max-w-2xl w-full mx-auto">
+                <div class="glass-card primary-card rounded-2xl sm:rounded-3xl p-4 sm:p-8">
+
+                    <div class="text-center border-b border-zinc-800 pb-5 sm:pb-6 mb-5 sm:mb-6">
+                        <img src="https://i.imgur.com/p2qZOL5.png" alt="CAB Logo" class="h-14 sm:h-16 w-auto mx-auto mb-4 object-contain" />
+                        <h3 class="text-2xl sm:text-3xl font-extrabold mb-1.5 tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Receipt Submission</h3>
+                        <p class="text-zinc-400 text-sm leading-relaxed">Submit a purchase receipt for reimbursement or record-keeping.</p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-1">
+                        <div class="form-group !mb-4 sm:!mb-6 flex-1">
+                            <label for="rf-firstName" class="form-label">First Name<span class="required-mark">*</span></label>
+                            <input type="text" id="rf-firstName" class="control-item" placeholder="First name" autocomplete="given-name" />
+                        </div>
+                        <div class="form-group !mb-4 sm:!mb-6 flex-1">
+                            <label for="rf-lastName" class="form-label">Last Name<span class="required-mark">*</span></label>
+                            <input type="text" id="rf-lastName" class="control-item" placeholder="Last name" autocomplete="family-name" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rf-team" class="form-label">CAB Team<span class="required-mark">*</span></label>
+                        <select id="rf-team" class="control-item">
+                            <option value="">Select your team...</option>
+                            <option>Special Events</option>
+                            <option>Student Markets</option>
+                            <option>Marketing</option>
+                            <option>The Arts</option>
+                            <option>Night Life</option>
+                            <option>Pastimes</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-1">
+                        <div class="form-group !mb-4 sm:!mb-6 flex-1">
+                            <label for="rf-date" class="form-label">Date of Purchase<span class="required-mark">*</span></label>
+                            <input type="date" id="rf-date" class="control-item" />
+                        </div>
+                        <div class="form-group !mb-4 sm:!mb-6 flex-1">
+                            <label for="rf-amount" class="form-label">Amount<span class="required-mark">*</span></label>
+                            <div class="amount-input-wrap">
+                                <span class="dollar-sign">$</span>
+                                <input type="number" id="rf-amount" class="control-item" step="0.01" min="0" placeholder="0.00" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rf-last4" class="form-label">Last 4 #'s of Card</label>
+                        <input type="text" id="rf-last4" class="control-item" inputmode="numeric" maxlength="4" placeholder="e.g. 1234" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rf-reason" class="form-label">Event Name and/or Reason for Expense<span class="required-mark">*</span></label>
+                        <input type="text" id="rf-reason" class="control-item" placeholder="Ex: CAB Supplies for GGT 2026" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rf-attendees" class="form-label">Estimated Attendees</label>
+                        <input type="number" id="rf-attendees" class="control-item" min="0" step="1" placeholder="e.g. 150" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Receipt Photo(s)<span class="required-mark">*</span></label>
+                        <input type="file" id="rf-photoInput" accept="image/*" multiple class="hidden" />
+                        <div id="rf-dropZone" class="drop-zone">
+                            <i data-lucide="upload-cloud" class="w-7 h-7 mx-auto mb-2 text-zinc-500"></i>
+                            <button type="button" id="rf-browseBtn" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold py-2 px-4 rounded-xl transition-all text-sm mb-1.5">
+                                Browse Files
+                            </button>
+                            <p class="text-zinc-500 text-xs">Drag and drop files here</p>
+                        </div>
+                        <p class="text-zinc-500 text-xs mt-2 leading-relaxed">Multiple photos for the same transaction can be uploaded here.<span class="required-mark">*</span></p>
+                        <div id="rf-photoPreview" class="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3 mt-3"></div>
+                    </div>
+
+                    <button class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl flex justify-center items-center gap-2 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] text-base border border-purple-500/50 mt-2" id="rf-submitBtn" onclick="submitReceipt()">
+                        <span>Submit Receipt</span>
+                        <div class="loader" id="rf-submitLoader"></div>
+                    </button>
+
+                    <div class="mt-6 pt-4 border-t border-zinc-800 flex flex-col items-center gap-1">
+                        <span class="text-zinc-600 text-xs tracking-wider">© <span id="year"></span> Canyon Activities Board</span>
+                        <button class="opacity-50 hover:opacity-100 transition-opacity uppercase tracking-widest bg-transparent border-none text-[10px] cursor-pointer text-zinc-500 p-1" onclick="showGate()">Staff Access</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= SUCCESS VIEW ================= -->
+            <div id="successView" class="view mx-auto w-full" style="max-width: min(24rem, calc(100% - 2.5rem));">
+                <div class="glass-card primary-card rounded-3xl px-6 py-8 sm:p-8 text-center">
+                    <div class="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-5 text-white shadow-[0_0_30px_rgba(168,85,247,0.5)] border border-purple-400/30">
+                        <i data-lucide="check" class="w-8 h-8"></i>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-2 tracking-tight text-white">Receipt Submitted!</h2>
+                    <p class="text-zinc-400 mb-4 text-sm leading-relaxed">Your purchase has been recorded and routed to your team's staff.</p>
+                    <div id="successEmailNote" class="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-400 leading-relaxed mb-6"></div>
+
+                    <button class="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold py-3.5 rounded-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-lg text-base" onclick="switchView('form')">
+                        Submit Another Receipt
+                    </button>
+                </div>
+            </div>
+
+            <!-- ================= ADMIN: RECEIPTS BY TEAM DASHBOARD ================= -->
+            <div id="dashboardView" class="view max-w-7xl w-full mx-auto">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 sm:mb-8 glass-card p-4 sm:p-5 rounded-2xl border-white/5">
+                    <div>
+                        <div class="flex items-center gap-3 px-2">
+                            <h2 class="text-xl font-bold text-white">Receipts by Team</h2>
+                        </div>
+                        <p class="text-zinc-400 text-sm px-2 mt-1">
+                            <span id="dash-totalCount">0</span> submissions &bull;
+                            <span class="text-emerald-400 font-semibold">$<span id="dash-totalAmount">0.00</span></span> total
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                        <input id="dash-search" type="text" placeholder="Search name or reason..." class="bg-zinc-800 border border-zinc-700 text-white py-2.5 px-4 rounded-xl text-sm font-medium outline-none w-full sm:w-56" oninput="renderDashboard()" />
+                        <select id="dash-teamFilter" class="bg-zinc-800 border border-zinc-700 text-white py-2.5 px-4 rounded-xl text-sm font-medium outline-none cursor-pointer" onchange="renderDashboard()">
+                            <option value="">All Teams</option>
+                        </select>
+                        <button onclick="exportReceipts()" class="flex-1 md:flex-none justify-center bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500/50 text-emerald-400 py-2.5 px-4 rounded-xl text-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex items-center gap-2 font-medium">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export Excel
+                        </button>
+                        <button onclick="switchView('settings'); renderSettings();" class="flex-1 md:flex-none justify-center bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white py-2.5 px-4 rounded-xl text-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg flex items-center gap-2 font-medium">
+                            <i data-lucide="settings" class="w-4 h-4"></i> Staff & Teams
+                        </button>
+                        <button onclick="logoutAdmin()" class="w-full md:w-auto justify-center bg-gradient-to-r from-blue-600 to-purple-600 border border-purple-500/50 text-white py-2.5 px-6 rounded-xl text-sm font-medium hover:opacity-90 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_15px_rgba(168,85,247,0.4)] flex items-center gap-2">
+                            Exit Admin
+                        </button>
+                    </div>
+                </div>
+                <div id="admin-teamCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-10"></div>
+            </div>
+
+            <!-- ================= ADMIN: STAFF & TEAM SETTINGS ================= -->
+            <div id="settingsView" class="view max-w-[90rem] w-full mx-auto">
+                <div class="glass-card rounded-3xl p-5 sm:p-10">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8 border-b border-zinc-800 pb-6">
+                        <h2 class="text-2xl font-bold tracking-tight text-white">Staff, Teams & Email Automation</h2>
+                        <button class="justify-center bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 py-2.5 px-6 rounded-xl text-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg font-medium flex items-center gap-2" onclick="renderDashboard(); switchView('dashboard')">
+                            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Dashboard
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-10">
+                        <div class="lg:col-span-5 flex flex-col gap-8">
+
+                            <!-- Security -->
+                            <div>
+                                <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4 border-b border-zinc-800 pb-2">Security</div>
+                                <div class="flex flex-col gap-3">
+                                    <input type="text" id="setNewPass" class="control-item no-save-pass" placeholder="Change admin password..." autocomplete="new-password" spellcheck="false" />
+                                    <button class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold py-2.5 rounded-xl transition-all text-sm" onclick="changeAdminPassword()">Update Password</button>
+                                    <p class="text-[10px] text-zinc-500 leading-relaxed">This is a front-end demo password only. When the backend is connected, this will be replaced with secure server-side authentication.</p>
+                                </div>
+                            </div>
+
+                            <!-- Staff -->
+                            <div>
+                                <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4 border-b border-zinc-800 pb-2 flex justify-between">
+                                    <span>Assign Staff to Teams</span>
+                                    <span class="text-zinc-500" id="staffCount">0</span>
+                                </div>
+                                <div class="flex flex-col gap-2 mb-4">
+                                    <div class="flex gap-2">
+                                        <input type="text" id="newStaffName" class="control-item !mb-0 flex-1" placeholder="Staff Name" />
+                                        <input type="email" id="newStaffEmail" class="control-item !mb-0 flex-1" placeholder="Staff Email" />
+                                    </div>
+                                    <div class="flex gap-2 items-start">
+                                        <select id="newStaffTeams" class="control-item !mb-0 flex-1" multiple size="6" title="Hold Ctrl/Cmd to select multiple teams">
+                                            <!-- populated dynamically -->
+                                        </select>
+                                        <button id="staffSaveBtn" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white px-4 py-2 rounded-xl transition-all h-full shrink-0" onclick="saveStaff()">Add</button>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button id="staffCancelBtn" class="hidden flex-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-bold py-2 rounded-xl text-sm transition" onclick="cancelStaffEdit()">Cancel Edit</button>
+                                    </div>
+                                    <p class="text-[10px] text-zinc-500">Hold Ctrl (Windows) or Cmd (Mac) to select multiple teams. Every staff member assigned to a team receives the kickback confirmation email (with the receipt photos attached) whenever a new submission comes in for that team.</p>
+                                </div>
+                                <div id="settings-staffList" class="flex flex-col gap-2 max-h-[260px] overflow-y-auto pr-2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Email Automation -->
+                        <div class="lg:col-span-7 bg-zinc-900/30 p-5 rounded-2xl border border-white/5 flex flex-col h-full">
+                            <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4 border-b border-zinc-800 pb-2">Kickback Email Automation Preview</div>
+                            <p class="text-xs text-zinc-400 leading-relaxed mb-4">Once the backend is connected, every new receipt submission will automatically email a confirmation &mdash; including the submitted details and the receipt photo(s) as attachments &mdash; to every staff member assigned to that team. Preview it here, or check the live activity log below whenever a receipt is submitted.</p>
+
+                            <div class="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 flex flex-col gap-3 mb-6">
+                                <div class="flex gap-2">
+                                    <select id="previewTeamSelect" class="control-item !mb-0 flex-1" onchange="renderEmailPreview()">
+                                        <!-- populated dynamically -->
+                                    </select>
+                                </div>
+                                <div id="previewRecipients" class="text-xs text-zinc-400"></div>
+                                <div id="previewEmailBody" class="bg-zinc-950/60 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-300 leading-relaxed whitespace-pre-line"></div>
+                            </div>
+
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-purple-400 text-xs font-bold tracking-wider uppercase">Live Activity Log</span>
+                                <span class="text-zinc-500 text-xs" id="emailLogCount">0 sent</span>
+                            </div>
+                            <div id="emailActivityLog" class="flex flex-col gap-2 flex-1 min-h-[200px] max-h-[320px] overflow-y-auto pr-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> <!-- End Center Wrapper -->
+
+    </main>
+
+    <!-- Admin Login Modal -->
+    <div id="gateModal" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="hideGate()"></div>
+        <div class="relative w-full max-w-sm glass-card rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl border-purple-500/30 transition-all duration-500 hover:shadow-[0_0_40px_rgba(168,85,247,0.2)] hover:-translate-y-2">
+            <div class="w-16 h-16 bg-zinc-900 rounded-2xl p-3 mb-4 flex items-center justify-center border border-zinc-800 transition-transform hover:rotate-12">
+                <i data-lucide="lock" class="w-8 h-8 text-zinc-400"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-1 text-white">Staff Login</h3>
+            <p class="text-zinc-400 text-sm mb-6">Enter admin password to access receipts by team.</p>
+
+            <input type="password" id="adminPass" class="control-item text-center mb-6 no-save-pass" placeholder="Password" autocomplete="off" spellcheck="false" onkeyup="if(event.key==='Enter') verifyAdmin()"/>
+
+            <button class="w-full bg-gradient-to-r from-blue-600 to-purple-600 border border-purple-500/50 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] shadow-[0_0_15px_rgba(168,85,247,0.3)]" id="gateBtn" onclick="verifyAdmin()">
+                <span>Authorize</span> <div class="loader" id="gateLoader"></div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Submission Detail Modal -->
+    <div id="submissionDetailModal" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="closeSubmissionDetails()"></div>
+        <div class="relative w-full max-w-lg glass-card rounded-3xl p-6 sm:p-8 flex flex-col shadow-2xl border-purple-500/30 transition-all duration-500 max-h-[90vh]">
+            <div class="flex justify-between items-start border-b border-zinc-800 pb-4 mb-4">
+                <div>
+                    <h3 class="text-xl font-bold text-white" id="detailModalName">Submitter Name</h3>
+                    <p class="text-purple-400 text-sm font-medium" id="detailModalTeam">Team Name</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="deleteSubmissionBtn" class="text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/80 p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 border border-rose-500/20" onclick="promptDeleteSubmission()" title="Delete Submission">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                    <button class="text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 p-2.5 rounded-xl transition" onclick="closeSubmissionDetails()">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto pr-2 flex flex-col gap-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                        <div class="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mb-1">Amount</div>
+                        <div class="text-lg font-black text-emerald-400" id="detailAmount">$0.00</div>
+                    </div>
+                    <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                        <div class="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mb-1">Date of Purchase</div>
+                        <div class="text-sm font-bold text-white" id="detailDate">-</div>
+                    </div>
+                    <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                        <div class="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mb-1">Last 4 of Card</div>
+                        <div class="text-sm font-bold text-white" id="detailLast4">-</div>
+                    </div>
+                    <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                        <div class="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mb-1">Est. Attendees</div>
+                        <div class="text-sm font-bold text-white" id="detailAttendees">-</div>
+                    </div>
+                </div>
+
+                <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                    <div class="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mb-1">Event Name / Reason for Expense</div>
+                    <div class="text-sm text-zinc-200" id="detailReason">-</div>
+                </div>
+
+                <div>
+                    <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-2">Receipt Photos</div>
+                    <div id="detailPhotos" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+                </div>
+
+                <div class="text-zinc-600 text-[10px]" id="detailSubmittedAt"></div>
+
+                <button class="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold py-2.5 rounded-xl transition-all text-sm flex justify-center items-center gap-2" onclick="resendConfirmation()">
+                    <i data-lucide="send" class="w-4 h-4"></i> Resend Kickback Confirmation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photo Lightbox -->
+    <div id="lightboxModal" class="fixed inset-0 z-[3000] hidden items-center justify-center p-4" onclick="closeLightbox()">
+        <div class="absolute inset-0 bg-zinc-950/90"></div>
+        <img id="lightboxImg" src="" class="relative max-w-full max-h-full rounded-xl border border-zinc-700" />
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="confirmModal" class="fixed inset-0 z-[2000] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="closeConfirmModal()"></div>
+        <div class="relative w-full max-w-sm glass-card rounded-3xl p-6 flex flex-col text-center shadow-2xl border-rose-500/30">
+            <div class="w-12 h-12 bg-rose-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-rose-400">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2 text-white" id="confirmModalTitle">Are you sure?</h3>
+            <p class="text-zinc-400 text-sm mb-6" id="confirmModalMsg">This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 rounded-xl transition" onclick="closeConfirmModal()">Cancel</button>
+                <button class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-xl transition" id="confirmModalActionBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="glass-card !bg-zinc-900 !text-white font-bold shadow-xl border !border-purple-500/50">Update Successful</div>
+
+<script>
+    // ==========================================
+    // CAB RECEIPT SUBMISSION — FRONT END ONLY
+    // Backend (storage + real email delivery) will be wired in later.
+    // Everything below persists to localStorage purely so the demo/admin
+    // views have something to show between page loads.
+    // ==========================================
+
+    const TEAMS = ['Special Events', 'Student Markets', 'Marketing', 'The Arts', 'Night Life', 'Pastimes'];
+    const DEFAULT_ADMIN_PASSWORD = 'Staff49!';
+
+    const STORAGE_KEYS = {
+        password:    'cabReceipts_password_v1',
+        staff:       'cabReceipts_staff_v1',
+        submissions: 'cabReceipts_submissions_v1',
+        emailLog:    'cabReceipts_emailLog_v1'
+    };
+
+    function loadJSON(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : fallback;
+        } catch (e) { return fallback; }
+    }
+    function saveJSON(key, value) {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage full or unavailable — data stays in-memory only */ }
+    }
+
+    function escapeHTML(str) {
+        if (!str && str !== 0) return '';
+        return str.toString().replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    }
+    function formatMoney(n) { return (Number(n) || 0).toFixed(2); }
+    function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+    let state = {
+        view: 'form',
+        adminPassword: loadJSON(STORAGE_KEYS.password, DEFAULT_ADMIN_PASSWORD),
+        staff: loadJSON(STORAGE_KEYS.staff, []),
+        submissions: loadJSON(STORAGE_KEYS.submissions, []),
+        emailLog: loadJSON(STORAGE_KEYS.emailLog, []),
+        formPhotos: [],
+        editingStaffId: null,
+        viewingSubmissionId: null
+    };
+
+    async function init() {
+        document.getElementById('year').textContent = new Date().getFullYear();
+        document.getElementById('rf-date').max = new Date().toLocaleDateString('en-CA');
+        document.getElementById('rf-date').valueAsDate = new Date();
+        setupDropZone();
+        lucide.createIcons();
+        switchView('form');
+    }
+
+    function switchView(viewName) {
+        state.view = viewName;
+        document.querySelectorAll('.view').forEach(v => {
+            v.classList.remove('active');
+            v.style.display = 'none';
+        });
+        const target = document.getElementById(viewName + 'View');
+        if (target) {
+            target.style.display = 'block';
+            setTimeout(() => target.classList.add('active'), 10);
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.style.borderColor = isError ? 'rgba(244,63,94,0.5)' : 'rgba(168,85,247,0.5)';
+        toast.style.color = isError ? '#fca5a5' : '#ffffff';
+        toast.style.display = 'block';
+        clearTimeout(window._toastTimer);
+        window._toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 3200);
+    }
+
+    // ==========================================
+    // RECEIPT PHOTO UPLOAD (drag & drop + browse)
+    // ==========================================
+    function setupDropZone() {
+        const dropZone = document.getElementById('rf-dropZone');
+        const fileInput = document.getElementById('rf-photoInput');
+        const browseBtn = document.getElementById('rf-browseBtn');
+
+        browseBtn.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', () => {
+            processFiles(fileInput.files);
+            fileInput.value = '';
+        });
+
+        ['dragenter', 'dragover'].forEach(evt => {
+            dropZone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+            dropZone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover'); });
+        });
+        dropZone.addEventListener('drop', (e) => { processFiles(e.dataTransfer.files); });
+    }
+
+    function processFiles(fileList) {
+        const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'));
+        if (!files.length) { showToast('Please select image files only.', true); return; }
+
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                state.formPhotos.push({ id: genId(), name: file.name, dataUrl: e.target.result });
+                renderPhotoPreviews();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderPhotoPreviews() {
+        const container = document.getElementById('rf-photoPreview');
+        container.innerHTML = state.formPhotos.map(p => `
+            <div class="photo-thumb">
+                <img src="${p.dataUrl}" alt="${escapeHTML(p.name)}" />
+                <button type="button" class="remove-photo-btn" onclick="removeFormPhoto('${p.id}')" title="Remove"><i data-lucide="x" class="w-3 h-3"></i></button>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    function removeFormPhoto(id) {
+        state.formPhotos = state.formPhotos.filter(p => p.id !== id);
+        renderPhotoPreviews();
+    }
+
+    // ==========================================
+    // RECEIPT SUBMISSION
+    // ==========================================
+    function submitReceipt() {
+        const firstName = document.getElementById('rf-firstName').value.trim();
+        const lastName = document.getElementById('rf-lastName').value.trim();
+        const team = document.getElementById('rf-team').value;
+        const purchaseDate = document.getElementById('rf-date').value;
+        const amount = parseFloat(document.getElementById('rf-amount').value);
+        const last4 = document.getElementById('rf-last4').value.trim();
+        const reason = document.getElementById('rf-reason').value.trim();
+        const attendees = document.getElementById('rf-attendees').value.trim();
+
+        if (!firstName || !lastName) return showToast('Please enter your first and last name.', true);
+        if (!team) return showToast('Please select your CAB Team.', true);
+        if (!purchaseDate) return showToast('Please enter the date of purchase.', true);
+        if (isNaN(amount) || amount <= 0) return showToast('Please enter a valid amount.', true);
+        if (last4 && !/^\d{4}$/.test(last4)) return showToast("Last 4 card digits must be exactly 4 numbers.", true);
+        if (!reason) return showToast('Please enter the event name and/or reason for expense.', true);
+        if (!state.formPhotos.length) return showToast('Please attach at least one receipt photo.', true);
+
+        const btn = document.getElementById('rf-submitBtn');
+        const loader = document.getElementById('rf-submitLoader');
+        btn.disabled = true; loader.style.display = 'block';
+
+        const submission = {
+            id: genId(),
+            firstName, lastName, team, purchaseDate,
+            amount, last4, reason,
+            attendees: attendees ? Number(attendees) : null,
+            photos: state.formPhotos.slice(),
+            submittedAt: new Date().toISOString()
+        };
+
+        state.submissions.unshift(submission);
+        saveJSON(STORAGE_KEYS.submissions, state.submissions);
+
+        const notifiedStaff = sendKickbackEmails(submission);
+
+        // Reset form
+        document.getElementById('rf-firstName').value = '';
+        document.getElementById('rf-lastName').value = '';
+        document.getElementById('rf-team').value = '';
+        document.getElementById('rf-date').valueAsDate = new Date();
+        document.getElementById('rf-amount').value = '';
+        document.getElementById('rf-last4').value = '';
+        document.getElementById('rf-reason').value = '';
+        document.getElementById('rf-attendees').value = '';
+        state.formPhotos = [];
+        renderPhotoPreviews();
+
+        const noteEl = document.getElementById('successEmailNote');
+        if (notifiedStaff.length) {
+            noteEl.textContent = `A kickback confirmation with your receipt(s) attached has been queued for: ${notifiedStaff.map(s => s.name).join(', ')}.`;
+        } else {
+            noteEl.textContent = `No staff are currently assigned to the "${team}" team, so no confirmation email was queued. An admin can assign staff under Staff & Teams.`;
+        }
+
+        if (window.confetti) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+
+        btn.disabled = false; loader.style.display = 'none';
+        switchView('success');
+    }
+
+    // ==========================================
+    // KICKBACK EMAIL SIMULATION
+    // TODO: replace with a real email call (Apps Script MailApp / SendGrid / etc.)
+    // once the backend is connected. This only logs what WOULD be sent.
+    // ==========================================
+    function buildEmailContent(submission) {
+        const subject = `Receipt Confirmation: ${submission.reason} — $${formatMoney(submission.amount)}`;
+        const body =
+`Hi {{staffName}},
+
+A new receipt was submitted for the ${submission.team} team.
+
+Submitted by: ${submission.firstName} ${submission.lastName}
+Date of Purchase: ${submission.purchaseDate}
+Amount: $${formatMoney(submission.amount)}
+Last 4 of Card: ${submission.last4 || 'N/A'}
+Event Name / Reason: ${submission.reason}
+Estimated Attendees: ${submission.attendees ?? 'N/A'}
+
+${submission.photos.length} receipt photo(s) attached.
+
+— CAB Receipt System`;
+        return { subject, body };
+    }
+
+    function sendKickbackEmails(submission) {
+        const staffForTeam = state.staff.filter(s => s.teams.includes(submission.team));
+        const { subject, body } = buildEmailContent(submission);
+
+        staffForTeam.forEach(staffMember => {
+            state.emailLog.unshift({
+                id: genId(),
+                staffName: staffMember.name,
+                staffEmail: staffMember.email,
+                team: submission.team,
+                submissionId: submission.id,
+                subject,
+                body: body.replace('{{staffName}}', staffMember.name),
+                attachmentCount: submission.photos.length,
+                sentAt: new Date().toISOString()
+            });
+        });
+        saveJSON(STORAGE_KEYS.emailLog, state.emailLog);
+        renderEmailLog();
+        return staffForTeam;
+    }
+
+    function resendConfirmation() {
+        const sub = state.submissions.find(s => s.id === state.viewingSubmissionId);
+        if (!sub) return;
+        const notified = sendKickbackEmails(sub);
+        showToast(notified.length ? `Confirmation resent to ${notified.length} staff member(s).` : 'No staff assigned to this team yet.', !notified.length);
+    }
+
+    // ==========================================
+    // ADMIN GATE
+    // ==========================================
+    function showGate() {
+        document.getElementById('gateModal').style.display = 'flex';
+        document.getElementById('gateModal').classList.remove('hidden');
+    }
+    function hideGate() {
+        document.getElementById('gateModal').style.display = 'none';
+        document.getElementById('gateModal').classList.add('hidden');
+        document.getElementById('adminPass').value = '';
+    }
+    function verifyAdmin() {
+        const pass = document.getElementById('adminPass').value;
+        if (!pass) return showToast('Password required', true);
+
+        const btn = document.getElementById('gateBtn');
+        const loader = document.getElementById('gateLoader');
+        btn.disabled = true; loader.style.display = 'block';
+
+        setTimeout(() => {
+            if (pass !== state.adminPassword) {
+                showToast('Incorrect password', true);
+            } else {
+                hideGate();
+                showToast('Access granted');
+                populateTeamFilters();
+                renderDashboard();
+                switchView('dashboard');
+            }
+            btn.disabled = false; loader.style.display = 'none';
+        }, 250);
+    }
+    function logoutAdmin() {
+        switchView('form');
+    }
+
+    // ==========================================
+    // ADMIN: RECEIPTS BY TEAM DASHBOARD
+    // ==========================================
+    function populateTeamFilters() {
+        const dashFilter = document.getElementById('dash-teamFilter');
+        dashFilter.innerHTML = '<option value="">All Teams</option>' + TEAMS.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
+
+        const previewSelect = document.getElementById('previewTeamSelect');
+        previewSelect.innerHTML = TEAMS.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
+    }
+
+    function renderDashboard() {
+        const grid = document.getElementById('admin-teamCards');
+        grid.innerHTML = '';
+
+        const search = document.getElementById('dash-search').value.trim().toLowerCase();
+        const teamFilterVal = document.getElementById('dash-teamFilter').value;
+        const teamsToShow = teamFilterVal ? [teamFilterVal] : TEAMS;
+
+        let grandTotal = 0, grandCount = 0;
+
+        teamsToShow.forEach(teamName => {
+            let teamSubs = state.submissions.filter(s => s.team === teamName);
+            if (search) {
+                teamSubs = teamSubs.filter(s =>
+                    (s.firstName + ' ' + s.lastName).toLowerCase().includes(search) ||
+                    (s.reason || '').toLowerCase().includes(search)
+                );
+            }
+
+            const teamTotal = teamSubs.reduce((sum, s) => sum + Number(s.amount), 0);
+            grandTotal += teamTotal;
+            grandCount += teamSubs.length;
+
+            const staffForTeam = state.staff.filter(s => s.teams.includes(teamName));
+            const staffChips = staffForTeam.length
+                ? staffForTeam.map(s => `<span class="team-chip"><i data-lucide="mail" class="w-3 h-3"></i>${escapeHTML(s.name)}</span>`).join('')
+                : `<span class="text-[10px] text-amber-400/80 italic">No staff assigned</span>`;
+
+            let listHTML;
+            if (teamSubs.length > 0) {
+                listHTML = teamSubs.map(sub => `
+                    <div class="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0 cursor-pointer hover:bg-zinc-800/50 rounded-lg px-2 -mx-2 transition gap-2" onclick="viewSubmissionDetails('${sub.id}')">
+                        <div class="flex flex-col flex-1 min-w-0">
+                            <span class="text-sm font-medium truncate text-zinc-200">${escapeHTML(sub.firstName)} ${escapeHTML(sub.lastName)}</span>
+                            <span class="text-[10px] text-zinc-500 truncate">${escapeHTML(sub.reason)} &bull; ${escapeHTML(sub.purchaseDate)}</span>
+                        </div>
+                        <span class="text-sm font-bold px-2 py-1 rounded-md shrink-0 text-emerald-400 bg-emerald-900/20 border border-emerald-500/20">$${formatMoney(sub.amount)}</span>
+                    </div>
+                `).join('');
+            } else {
+                listHTML = `<div class="text-xs text-zinc-500 italic py-2">No purchases logged yet.</div>`;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'glass-card rounded-2xl border-white/5 flex flex-col transition hover:-translate-y-1 hover:border-purple-500/30 overflow-hidden';
+            card.innerHTML = `
+                <div class="p-4 sm:p-5 border-b border-zinc-800 bg-zinc-900/50">
+                    <div class="flex justify-between items-center gap-3 mb-2">
+                        <div class="flex items-center gap-3 flex-1 min-w-0">
+                            <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700 text-purple-400 shrink-0"><i data-lucide="receipt" class="w-4 h-4"></i></div>
+                            <span class="font-bold text-white break-words leading-tight">${escapeHTML(teamName)}</span>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">${teamSubs.length} receipt${teamSubs.length === 1 ? '' : 's'}</div>
+                            <div class="text-xl font-black text-emerald-400 leading-tight">$${formatMoney(teamTotal)}</div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">${staffChips}</div>
+                </div>
+                <div class="p-4 flex-1 flex flex-col gap-1 max-h-[250px] overflow-y-auto">${listHTML}</div>
+            `;
+            grid.appendChild(card);
+        });
+
+        document.getElementById('dash-totalCount').textContent = grandCount;
+        document.getElementById('dash-totalAmount').textContent = formatMoney(grandTotal);
+
+        lucide.createIcons();
+    }
+
+    function exportReceipts() {
+        if (!window.XLSX) return showToast('Export library failed to load.', true);
+        const rows = state.submissions.map(s => ({
+            Team: s.team,
+            'First Name': s.firstName,
+            'Last Name': s.lastName,
+            'Date of Purchase': s.purchaseDate,
+            Amount: Number(s.amount),
+            'Last 4 of Card': s.last4 || '',
+            'Event Name / Reason': s.reason,
+            'Estimated Attendees': s.attendees ?? '',
+            'Photo Count': s.photos.length,
+            'Submitted At': s.submittedAt
+        }));
+        if (!rows.length) return showToast('No submissions to export yet.', true);
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Receipts');
+        XLSX.writeFile(wb, `CAB_Receipts_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+
+    // ==========================================
+    // ADMIN: SUBMISSION DETAIL MODAL
+    // ==========================================
+    function viewSubmissionDetails(id) {
+        state.viewingSubmissionId = id;
+        const sub = state.submissions.find(s => s.id === id);
+        if (!sub) return;
+
+        document.getElementById('detailModalName').textContent = `${sub.firstName} ${sub.lastName}`;
+        document.getElementById('detailModalTeam').textContent = sub.team;
+        document.getElementById('detailAmount').textContent = `$${formatMoney(sub.amount)}`;
+        document.getElementById('detailDate').textContent = sub.purchaseDate;
+        document.getElementById('detailLast4').textContent = sub.last4 || '—';
+        document.getElementById('detailAttendees').textContent = sub.attendees ?? '—';
+        document.getElementById('detailReason').textContent = sub.reason;
+        document.getElementById('detailSubmittedAt').textContent = `Submitted ${new Date(sub.submittedAt).toLocaleString()}`;
+
+        document.getElementById('detailPhotos').innerHTML = sub.photos.map(p => `
+            <div class="photo-thumb cursor-pointer" onclick="openLightbox('${p.dataUrl.replace(/'/g, "\\'")}')">
+                <img src="${p.dataUrl}" alt="${escapeHTML(p.name)}" />
+            </div>
+        `).join('');
+
+        document.getElementById('submissionDetailModal').style.display = 'flex';
+        document.getElementById('submissionDetailModal').classList.remove('hidden');
+        lucide.createIcons();
+    }
+    function closeSubmissionDetails() {
+        document.getElementById('submissionDetailModal').style.display = 'none';
+        document.getElementById('submissionDetailModal').classList.add('hidden');
+        state.viewingSubmissionId = null;
+    }
+    function promptDeleteSubmission() {
+        const id = state.viewingSubmissionId;
+        if (!id) return;
+        openConfirmModal('Delete Submission?', 'Permanently delete this receipt submission? This cannot be undone.', 'Delete', () => {
+            state.submissions = state.submissions.filter(s => s.id !== id);
+            saveJSON(STORAGE_KEYS.submissions, state.submissions);
+            closeSubmissionDetails();
+            renderDashboard();
+            showToast('Submission deleted.');
+        });
+    }
+
+    function openLightbox(dataUrl) {
+        document.getElementById('lightboxImg').src = dataUrl;
+        document.getElementById('lightboxModal').style.display = 'flex';
+        document.getElementById('lightboxModal').classList.remove('hidden');
+    }
+    function closeLightbox() {
+        document.getElementById('lightboxModal').style.display = 'none';
+        document.getElementById('lightboxModal').classList.add('hidden');
+    }
+
+    // ==========================================
+    // ADMIN: STAFF & TEAM ASSIGNMENT
+    // ==========================================
+    function populateStaffTeamSelect() {
+        const sel = document.getElementById('newStaffTeams');
+        sel.innerHTML = TEAMS.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
+    }
+
+    function renderSettings() {
+        populateStaffTeamSelect();
+        populateTeamFilters();
+        renderStaffList();
+        renderEmailLog();
+        renderEmailPreview();
+    }
+
+    function renderStaffList() {
+        document.getElementById('staffCount').textContent = state.staff.length;
+        const list = document.getElementById('settings-staffList');
+
+        if (!state.staff.length) {
+            list.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">No staff added yet.</div>`;
+            return;
+        }
+
+        list.innerHTML = state.staff.map(s => `
+            <div class="flex justify-between items-center bg-zinc-900/50 p-3 rounded-xl border border-zinc-800 gap-3">
+                <div class="flex flex-col overflow-hidden flex-1">
+                    <span class="text-sm font-bold text-white truncate">${escapeHTML(s.name)}</span>
+                    <span class="text-xs text-zinc-500 truncate">${escapeHTML(s.email)}</span>
+                    <div class="flex flex-wrap gap-1 mt-1.5">${s.teams.map(t => `<span class="team-chip">${escapeHTML(t)}</span>`).join('')}</div>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    <button class="text-blue-400 hover:text-blue-300 p-2 bg-zinc-800 rounded-lg transition" onclick="editStaff('${s.id}')" title="Edit"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                    <button class="text-rose-500 hover:text-rose-400 p-2 bg-zinc-800 rounded-lg transition" onclick="promptDeleteStaff('${s.id}')" title="Remove"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    function saveStaff() {
+        const name = document.getElementById('newStaffName').value.trim();
+        const email = document.getElementById('newStaffEmail').value.trim();
+        const teamsSelected = Array.from(document.getElementById('newStaffTeams').selectedOptions).map(o => o.value);
+
+        if (!name || !email) return showToast('Please enter a staff name and email.', true);
+        if (!teamsSelected.length) return showToast('Please select at least one team.', true);
+
+        if (state.editingStaffId) {
+            const staffMember = state.staff.find(s => s.id === state.editingStaffId);
+            if (staffMember) { staffMember.name = name; staffMember.email = email; staffMember.teams = teamsSelected; }
+            showToast('Staff member updated.');
+            cancelStaffEdit();
+        } else {
+            state.staff.push({ id: genId(), name, email, teams: teamsSelected });
+            showToast('Staff member added.');
+            document.getElementById('newStaffName').value = '';
+            document.getElementById('newStaffEmail').value = '';
+            document.getElementById('newStaffTeams').selectedIndex = -1;
+        }
+
+        saveJSON(STORAGE_KEYS.staff, state.staff);
+        renderStaffList();
+        renderDashboard();
+        renderEmailPreview();
+    }
+
+    function editStaff(id) {
+        const s = state.staff.find(x => x.id === id);
+        if (!s) return;
+        state.editingStaffId = id;
+        document.getElementById('newStaffName').value = s.name;
+        document.getElementById('newStaffEmail').value = s.email;
+        Array.from(document.getElementById('newStaffTeams').options).forEach(o => { o.selected = s.teams.includes(o.value); });
+        document.getElementById('staffSaveBtn').textContent = 'Update';
+        document.getElementById('staffCancelBtn').classList.remove('hidden');
+    }
+
+    function cancelStaffEdit() {
+        state.editingStaffId = null;
+        document.getElementById('newStaffName').value = '';
+        document.getElementById('newStaffEmail').value = '';
+        document.getElementById('newStaffTeams').selectedIndex = -1;
+        document.getElementById('staffSaveBtn').textContent = 'Add';
+        document.getElementById('staffCancelBtn').classList.add('hidden');
+    }
+
+    function promptDeleteStaff(id) {
+        const s = state.staff.find(x => x.id === id);
+        if (!s) return;
+        openConfirmModal('Remove Staff Member?', `Remove <strong>${escapeHTML(s.name)}</strong> from all assigned teams? They will stop receiving kickback confirmation emails.`, 'Remove', () => {
+            state.staff = state.staff.filter(x => x.id !== id);
+            saveJSON(STORAGE_KEYS.staff, state.staff);
+            if (state.editingStaffId === id) cancelStaffEdit();
+            renderStaffList();
+            renderDashboard();
+            renderEmailPreview();
+            showToast('Staff member removed.');
+        });
+    }
+
+    function changeAdminPassword() {
+        const newPass = document.getElementById('setNewPass').value;
+        if (!newPass) return showToast('Enter a new password first.', true);
+        state.adminPassword = newPass;
+        saveJSON(STORAGE_KEYS.password, newPass);
+        document.getElementById('setNewPass').value = '';
+        showToast('Admin password updated.');
+    }
+
+    // ==========================================
+    // EMAIL PREVIEW + ACTIVITY LOG
+    // ==========================================
+    function renderEmailPreview() {
+        const team = document.getElementById('previewTeamSelect').value || TEAMS[0];
+        const staffForTeam = state.staff.filter(s => s.teams.includes(team));
+
+        const recipientsEl = document.getElementById('previewRecipients');
+        recipientsEl.innerHTML = staffForTeam.length
+            ? `Recipients: ${staffForTeam.map(s => escapeHTML(s.name) + ' &lt;' + escapeHTML(s.email) + '&gt;').join(', ')}`
+            : `<span class="text-amber-400/80">No staff assigned to ${escapeHTML(team)} yet &mdash; add someone on the left.</span>`;
+
+        const sampleSubmission = {
+            firstName: 'Jordan', lastName: 'Sample', team,
+            purchaseDate: new Date().toLocaleDateString('en-CA'),
+            amount: 42.17, last4: '1234',
+            reason: 'Ex: CAB Supplies for GGT 2026',
+            attendees: 150, photos: [{ name: 'receipt1.jpg' }]
+        };
+        const { subject, body } = buildEmailContent(sampleSubmission);
+        document.getElementById('previewEmailBody').textContent = `Subject: ${subject}\n\n${body.replace('{{staffName}}', staffForTeam[0] ? staffForTeam[0].name : '[Staff Name]')}`;
+    }
+
+    function renderEmailLog() {
+        document.getElementById('emailLogCount').textContent = `${state.emailLog.length} sent`;
+        const container = document.getElementById('emailActivityLog');
+        if (!state.emailLog.length) {
+            container.innerHTML = `<div class="text-xs text-zinc-500 italic py-4 text-center border border-dashed border-zinc-800 rounded-xl">No kickback emails sent yet. They'll appear here as receipts are submitted.</div>`;
+            return;
+        }
+        container.innerHTML = state.emailLog.map(e => `
+            <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                <div class="flex justify-between items-start gap-2 mb-1">
+                    <span class="text-sm font-bold text-white truncate">${escapeHTML(e.staffName)}</span>
+                    <span class="team-chip shrink-0">${escapeHTML(e.team)}</span>
+                </div>
+                <div class="text-xs text-zinc-500 truncate mb-1">${escapeHTML(e.staffEmail)}</div>
+                <div class="text-xs text-zinc-300 truncate">${escapeHTML(e.subject)}</div>
+                <div class="flex justify-between items-center mt-2">
+                    <span class="text-[10px] text-zinc-600">${new Date(e.sentAt).toLocaleString()}</span>
+                    <span class="text-[10px] text-purple-400 flex items-center gap-1"><i data-lucide="paperclip" class="w-3 h-3"></i>${e.attachmentCount} photo${e.attachmentCount === 1 ? '' : 's'}</span>
+                </div>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    // ==========================================
+    // GENERIC CONFIRM MODAL
+    // ==========================================
+    let confirmActionCallback = null;
+    function openConfirmModal(title, msg, btnText, callback) {
+        document.getElementById('confirmModalTitle').textContent = title;
+        document.getElementById('confirmModalMsg').innerHTML = msg;
+        document.getElementById('confirmModalActionBtn').textContent = btnText;
+        confirmActionCallback = callback;
+        document.getElementById('confirmModal').style.display = 'flex';
+        document.getElementById('confirmModal').classList.remove('hidden');
+    }
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').style.display = 'none';
+        document.getElementById('confirmModal').classList.add('hidden');
+        confirmActionCallback = null;
+    }
+    document.getElementById('confirmModalActionBtn').addEventListener('click', () => {
+        if (confirmActionCallback) confirmActionCallback();
+        closeConfirmModal();
+    });
+
+    init();
+</script>
+
+</body>
+</html>
