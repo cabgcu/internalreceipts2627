@@ -621,10 +621,7 @@
 
         function handleFiles(files) {
             Array.from(files).forEach(file => {
-                if (file.size > 5 * 1024 * 1024) { // 5MB sanity limit per file for base64 uploading
-                    return showToast(`File ${file.name} is too large (max 5MB)`, true);
-                }
-
+                // Removed the 5MB check to allow larger files to pass through the proxy
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
