@@ -229,7 +229,12 @@
 
                     <div class="form-group">
                         <label for="reqAttendees" id="lbl_reqAttendees" class="form-label">Estimated Attendees</label>
-                        <input type="number" id="reqAttendees" class="control-item" placeholder="Leave blank if N/A" />
+                        <input type="number" id="reqAttendees" class="control-item" placeholder="Leave blank if N/A" oninput="checkAttendees()" />
+                    </div>
+
+                    <div class="form-group hidden" id="attendeeNamesGroup">
+                        <label for="reqAttendeeNames" class="form-label text-purple-400">Attendee Names *</label>
+                        <textarea id="reqAttendeeNames" class="control-item !min-h-[80px] border-purple-500/50" placeholder="Please list the names of everyone present..."></textarea>
                     </div>
 
                     <!-- File Upload Section -->
@@ -642,6 +647,17 @@
             renderPreviews();
         }
 
+        function checkAttendees() {
+            const val = document.getElementById('reqAttendees').value;
+            const group = document.getElementById('attendeeNamesGroup');
+            // Show the names box if attendees is between 1 and 6
+            if (val !== '' && parseInt(val) > 0 && parseInt(val) < 7) {
+                group.classList.remove('hidden');
+            } else {
+                group.classList.add('hidden');
+            }
+        }
+
         // --- SUBMISSION PROCESS ---
         async function uploadFileToProxy(imgObj) {
             // Strip the metadata prefix (e.g., "data:image/jpeg;base64,") to get raw base64
@@ -669,8 +685,17 @@
             const date = document.getElementById('reqDate').value;
             const amount = document.getElementById('reqAmount').value;
             const card = document.getElementById('reqCard').value.trim();
-            const reason = document.getElementById('reqReason').value.trim();
-            const attendees = document.getElementById('reqAttendees').value || 0;
+            let reason = document.getElementById('reqReason').value.trim();
+            const attendees = document.getElementById('reqAttendees').value;
+            
+            let parsedAttendees = parseInt(attendees) || 0;
+            
+            // Check if we need names and bundle them into the reason
+            if (attendees !== '' && parsedAttendees > 0 && parsedAttendees < 7) {
+                const names = document.getElementById('reqAttendeeNames').value.trim();
+                if (!names) return showToast("Please list the names of the attendees.", true);
+                reason += `\n\nAttendee Names: ${names}`;
+            }
 
             if(!name || !team || !date || !amount || !card || !reason || currentUploadedImages.length === 0) {
                 return showToast("Please fill all required fields and attach at least one file.", true);
@@ -750,6 +775,8 @@
             document.getElementById('reqCard').value = '';
             document.getElementById('reqReason').value = '';
             document.getElementById('reqAttendees').value = '';
+            document.getElementById('reqAttendeeNames').value = '';
+            document.getElementById('attendeeNamesGroup').classList.add('hidden');
             currentUploadedImages = [];
             renderPreviews();
         }
