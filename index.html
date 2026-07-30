@@ -251,9 +251,8 @@
                         <div id="previewArea" class="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-4 hidden"></div>
                     </div>
 
-                    <button id="submitBtn" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl flex justify-center items-center gap-2 transition-all duration-300 shadow-[0_0_20px_rgba(168,85,247,0.3)] mt-8" onclick="submitReceipt()">
-                        <span>Submit Receipt</span>
-                        <div class="loader" id="submitLoader"></div>
+                    <button id="submitBtn" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl flex justify-center items-center gap-2 transition-all duration-300 shadow-[0_0_20px_rgba(168,85,247,0.3)] mt-8" onclick="previewSubmission()">
+                        <span>Review & Submit</span>
                     </button>
                     
                     <div class="mt-6 pt-4 border-t border-zinc-800 flex flex-col items-center gap-1">
@@ -434,6 +433,40 @@
 
     <!-- Toast Notification -->
     <div id="toast" class="glass-card !bg-zinc-900 !text-white font-bold shadow-xl border !border-purple-500/50">Update Successful</div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="fixed inset-0 z-[2000] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="closePreviewModal()"></div>
+        <div class="relative w-full max-w-md glass-card rounded-3xl p-6 sm:p-8 flex flex-col shadow-2xl border-blue-500/30 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center gap-3 mb-4 border-b border-zinc-800 pb-4">
+                <div class="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400 shrink-0">
+                    <i data-lucide="eye" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">Review Details</h3>
+                    <p class="text-zinc-400 text-xs">Please verify before submitting.</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-col gap-3 mb-6 text-sm">
+                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Name</span><span class="text-white font-medium text-right" id="prevName"></span></div>
+                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Team</span><span class="text-purple-400 font-medium text-right" id="prevTeam"></span></div>
+                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Date</span><span class="text-white font-medium text-right" id="prevDate"></span></div>
+                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Amount</span><span class="text-emerald-400 font-bold text-right" id="prevAmount"></span></div>
+                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Card</span><span class="text-white font-medium text-right" id="prevCard"></span></div>
+                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Attendees</span><span class="text-white font-medium text-right" id="prevAttendees"></span></div>
+                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Files Attached</span><span class="text-white font-medium text-right" id="prevFiles"></span></div>
+                <div class="flex flex-col gap-1 pt-1"><span class="text-zinc-500">Reason / Event</span><span class="text-white font-medium bg-zinc-900/50 p-2 rounded-lg border border-zinc-800" id="prevReason"></span></div>
+            </div>
+
+            <div class="flex gap-3 mt-2">
+                <button class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3.5 rounded-xl transition" onclick="closePreviewModal()">Edit Info</button>
+                <button class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 text-white font-bold py-3.5 rounded-xl transition flex justify-center items-center gap-2" id="confirmSubmitBtn" onclick="processSubmission()">
+                    <span>Confirm & Submit</span> <div class="loader !w-4 !h-4 !ml-0 !mr-0 border-white" id="submitModalLoader" style="display:none; border-bottom-color: transparent;"></div>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Custom Confirm Modal -->
     <div id="confirmModal" class="fixed inset-0 z-[2000] hidden items-center justify-center p-4">
@@ -679,7 +712,59 @@
             return result.url; // The direct Google Drive view URL
         }
 
-        async function submitReceipt() {
+        function previewSubmission() {
+            const name = document.getElementById('reqName').value.trim();
+            const team = document.getElementById('reqTeam').value;
+            const date = document.getElementById('reqDate').value;
+            const amount = document.getElementById('reqAmount').value;
+            const card = document.getElementById('reqCard').value.trim();
+            const reason = document.getElementById('reqReason').value.trim();
+            const attendees = document.getElementById('reqAttendees').value;
+            
+            let parsedAttendees = parseInt(attendees) || 0;
+            let names = '';
+            
+            // Check if we need names
+            if (attendees !== '' && parsedAttendees > 0 && parsedAttendees < 7) {
+                names = document.getElementById('reqAttendeeNames').value.trim();
+                if (!names) return showToast("Please list the names of the attendees.", true);
+            }
+
+            if(!name || !team || !date || !amount || !card || !reason || currentUploadedImages.length === 0) {
+                return showToast("Please fill all required fields and attach at least one file.", true);
+            }
+
+            // Populate Modal
+            document.getElementById('prevName').textContent = name;
+            document.getElementById('prevTeam').textContent = team;
+            
+            // Reformat date for nicer reading
+            const dateParts = date.split('-');
+            const displayDate = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}` : date;
+            document.getElementById('prevDate').textContent = displayDate;
+            
+            document.getElementById('prevAmount').textContent = "$" + parseFloat(amount).toFixed(2);
+            document.getElementById('prevCard').textContent = "*" + card;
+            
+            let attendeeText = attendees || "N/A";
+            if (names) attendeeText += ` (${names})`;
+            document.getElementById('prevAttendees').textContent = attendeeText;
+            
+            document.getElementById('prevFiles').textContent = currentUploadedImages.length + " file(s)";
+            document.getElementById('prevReason').textContent = reason;
+
+            // Show Modal
+            document.getElementById('previewModal').style.display = 'flex';
+            document.getElementById('previewModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closePreviewModal() {
+            document.getElementById('previewModal').style.display = 'none';
+            document.getElementById('previewModal').classList.add('hidden');
+        }
+
+        async function processSubmission() {
             const name = document.getElementById('reqName').value.trim();
             const team = document.getElementById('reqTeam').value;
             const date = document.getElementById('reqDate').value;
@@ -690,19 +775,14 @@
             
             let parsedAttendees = parseInt(attendees) || 0;
             
-            // Check if we need names and bundle them into the reason
+            // Bundle attendee names into the reason if applicable
             if (attendees !== '' && parsedAttendees > 0 && parsedAttendees < 7) {
                 const names = document.getElementById('reqAttendeeNames').value.trim();
-                if (!names) return showToast("Please list the names of the attendees.", true);
                 reason += `\n\nAttendee Names: ${names}`;
             }
 
-            if(!name || !team || !date || !amount || !card || !reason || currentUploadedImages.length === 0) {
-                return showToast("Please fill all required fields and attach at least one file.", true);
-            }
-
-            const btn = document.getElementById('submitBtn');
-            const loader = document.getElementById('submitLoader');
+            const btn = document.getElementById('confirmSubmitBtn');
+            const loader = document.getElementById('submitModalLoader');
             btn.disabled = true; loader.style.display = 'block';
 
             try {
@@ -757,6 +837,7 @@
                 }
 
                 fireConfetti();
+                closePreviewModal();
                 switchView('success');
 
             } catch (e) {
