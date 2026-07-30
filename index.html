@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="color-scheme: dark;">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -9,6 +9,9 @@
     <title>CAB Receipt Submission</title>
     
     <link rel="icon" href="data:," />
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -44,16 +47,7 @@
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #71717a; }
         .no-save-pass { -webkit-text-security: disc !important; text-security: disc !important; }
-        html { background-color: #09090b; color-scheme: dark; }
-
-        body {
-            background-color: #07060f;
-            background-image: url('https://i.imgur.com/4DfFmUh.png');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            background-repeat: no-repeat;
-        }
+        html { background-color: #09090b; }
 
         .glass-card {
             background: rgba(9, 9, 11, 0.65);
@@ -83,6 +77,9 @@
             outline: none;
             transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
         }
+        @media (min-width: 640px) {
+            .control-item { padding: 1rem 1.25rem; }
+        }
         @media (hover: hover) {
             .control-item:hover {
                 border-color: rgba(168, 85, 247, 0.4);
@@ -107,12 +104,12 @@
             padding-right: 2.5rem; 
         }
 
-        /* Fixes the stark white dropdown menu on Windows Chrome/Edge */
-        select.control-item option {
-            background-color: #18181b;
-            color: #ffffff;
+        /* Forces dropdown options to be dark on Windows instead of white */
+        select.control-item option { 
+            background: #18181b; 
+            color: white; 
         }
-
+        
         select[multiple].control-item {
             background-image: none;
             padding-right: 1rem;
@@ -127,36 +124,60 @@
             background: linear-gradient(to right, #2563eb, #9333ea) !important;
             color: white;
         }
-        
-        input[type="date"].control-item::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
 
-        .form-label { display: block; margin-bottom: 0.5rem; color: #ffffff; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.4; }
-        .form-group { margin-bottom: 1.25rem; }
+        input[type="date"].control-item {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input[type="date"].control-item::-webkit-date-and-time-value { text-align: left; }
+        input[type="date"].control-item::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; margin-left: auto; }
+
+        .form-label { display: block; margin-bottom: 0.75rem; color: #ffffff; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.4; }
+        .form-group { margin-bottom: 1.5rem; }
 
         .loader { display: none; width: 18px; height: 18px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rotation 1s linear infinite; margin-left: 10px; }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Dropzone Styles */
-        .dropzone {
-            border: 2px dashed rgba(168, 85, 247, 0.4);
-            background: rgba(24, 24, 27, 0.6);
-            border-radius: 1rem;
-            padding: 2rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
+        #toast { position: fixed; bottom: max(30px, calc(env(safe-area-inset-bottom, 0px) + 15px)); left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; padding: 16px 24px; border-radius: 100px; z-index: 2000; display: none; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        
+        body {
+            background-color: #07060f;
+            background-image: url('https://i.imgur.com/4DfFmUh.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
         }
-        .dropzone.drag-active {
+
+        /* Drag & Drop Upload Zone */
+        .upload-zone {
+            border: 2px dashed rgba(168, 85, 247, 0.3);
+            background: rgba(24, 24, 27, 0.5);
+            transition: all 0.3s ease;
+        }
+        .upload-zone.dragover {
             border-color: #a855f7;
             background: rgba(168, 85, 247, 0.1);
             transform: scale(1.02);
         }
-        .img-preview-thumb {
+        .preview-image {
             width: 100%;
-            height: 90px;
+            height: 100%;
             object-fit: cover;
             border-radius: 0.5rem;
-            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .file-icon {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #27272a;
+            border-radius: 0.5rem;
+            color: #a855f7;
         }
     </style>
 </head>
@@ -165,239 +186,259 @@
     <!-- Dark Overlay -->
     <div class="fixed inset-0 bg-zinc-950/70 z-[-1]"></div>
 
-    <main class="relative z-10 w-full mx-auto px-3 py-6 sm:p-8 min-h-[100dvh] flex flex-col justify-center items-center">
-        <!-- FORM VIEW -->
-        <div id="formView" class="view active max-w-2xl w-full mx-auto">
-            <div class="glass-card primary-card rounded-2xl sm:rounded-3xl p-5 sm:p-8 relative overflow-hidden">
-                <div class="text-center mb-8">
-                    <img src="https://i.imgur.com/p2qZOL5.png" alt="CAB Logo" class="h-16 w-auto mx-auto mb-4 object-contain" />
-                    <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">CAB Receipt Submission</h2>
-                    <p class="text-zinc-400 text-sm mt-2">Log CAB expenses quickly and securely.</p>
-                </div>
+    <main class="relative z-10 w-full max-w-7xl mx-auto px-3 py-4 sm:p-8 min-h-[100dvh] flex flex-col">
+        <div class="flex-1 w-full flex flex-col items-center justify-center py-8 sm:py-10">
 
-                <form id="receiptForm" onsubmit="handleFormSubmit(event)">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- SUBMITTER FORM VIEW -->
+            <div id="formView" class="view active max-w-2xl w-full mx-auto">
+                <div class="glass-card primary-card rounded-3xl p-6 sm:p-8">
+                    <div class="text-center mb-8">
+                        <img src="https://i.imgur.com/p2qZOL5.png" alt="CAB Logo" class="h-16 w-auto mx-auto mb-4 object-contain" />
+                        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">CAB Receipt Submission</h2>
+                        <p class="text-zinc-400 text-sm mt-2">Log your CAB-related expenses below.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0">
                         <div class="form-group">
-                            <label id="lblReqName" class="form-label">First & Last Name</label>
-                            <input type="text" id="reqName" class="control-item" placeholder="Your Full Name" required />
+                            <label for="reqName" id="lbl_reqName" class="form-label">First & Last Name *</label>
+                            <input type="text" id="reqName" class="control-item" placeholder="e.g. Jane Doe" />
                         </div>
                         <div class="form-group">
-                            <label id="lblReqTeam" class="form-label">CAB Team</label>
-                            <select id="reqTeam" class="control-item" required>
-                                <option value="" disabled selected>Select Team...</option>
-                                <!-- Populated dynamically -->
-                            </select>
+                            <label for="reqTeam" id="lbl_reqTeam" class="form-label">CAB Team *</label>
+                            <select id="reqTeam" class="control-item"><option value="">Select Team...</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="reqDate" id="lbl_reqDate" class="form-label">Date of Purchase *</label>
+                            <input type="date" id="reqDate" class="control-item" />
+                        </div>
+                        <div class="form-group">
+                            <label for="reqAmount" id="lbl_reqAmount" class="form-label">Amount ($) *</label>
+                            <input type="number" id="reqAmount" class="control-item" step="0.01" min="0" placeholder="0.00" />
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="form-group">
-                            <label id="lblReqDate" class="form-label">Date of Purchase</label>
-                            <input type="date" id="reqDate" class="control-item" required />
-                        </div>
-                        <div class="form-group">
-                            <label id="lblReqAmount" class="form-label">Amount</label>
-                            <div class="relative">
-                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">$</span>
-                                <input type="number" id="reqAmount" class="control-item !pl-8" step="0.01" min="0" placeholder="0.00" required />
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label id="lblReqCard" class="form-label">Card Last 4 #</label>
-                            <input type="text" id="reqCard" class="control-item" maxlength="4" pattern="\d{4}" placeholder="e.g. 1234" required />
-                        </div>
+                    <div class="form-group">
+                        <label for="reqCard" id="lbl_reqCard" class="form-label">Last 4 #s of Card *</label>
+                        <input type="text" id="reqCard" class="control-item" placeholder="e.g. 1234" maxlength="4" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reqReason" id="lbl_reqReason" class="form-label">Event Name and/or Reason for Expense *</label>
+                        <input type="text" id="reqReason" class="control-item" placeholder="e.g. CAB Supplies for GGT 2026" />
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        <div class="form-group sm:col-span-3">
-                            <label id="lblReqReason" class="form-label">Event Name / Reason</label>
-                            <input type="text" id="reqReason" class="control-item" placeholder="e.g. CAB Supplies for GGT 2026" required />
-                        </div>
-                        <div class="form-group sm:col-span-1">
-                            <label id="lblReqAttendees" class="form-label">Attendees</label>
-                            <input type="number" id="reqAttendees" class="control-item" placeholder="Est. count" min="0" />
-                        </div>
+                    <div class="form-group">
+                        <label for="reqAttendees" id="lbl_reqAttendees" class="form-label">Estimated Attendees</label>
+                        <input type="number" id="reqAttendees" class="control-item" placeholder="Leave blank if N/A" />
                     </div>
 
-                    <div class="form-group mt-2">
-                        <label class="form-label mb-2 flex justify-between items-end">
-                            <span>Receipt Photo(s)*</span>
-                            <span class="text-xs text-purple-400 normal-case tracking-normal"><span id="photoCount">0</span> uploaded</span>
-                        </label>
-                        <div id="dropzone" class="dropzone" onclick="document.getElementById('fileInput').click()">
-                            <i data-lucide="image-plus" class="w-10 h-10 text-purple-400/50 mx-auto mb-2"></i>
-                            <p class="text-zinc-300 font-medium mb-1">Click to Browse or Drag Files</p>
-                            <p class="text-xs text-zinc-500">Supports multiple images for the same transaction</p>
-                            <input type="file" id="fileInput" class="hidden" multiple accept="image/*" onchange="handleFileSelect(event)" />
+                    <!-- File Upload Section -->
+                    <div class="form-group">
+                        <label class="form-label">Attached Files / Receipts *</label>
+                        <div id="dragDropZone" class="upload-zone rounded-xl p-8 text-center cursor-pointer flex flex-col items-center justify-center min-h-[160px]" onclick="document.getElementById('fileInput').click()">
+                            <i data-lucide="upload-cloud" class="w-10 h-10 text-purple-400 mb-3"></i>
+                            <div class="text-white font-bold text-sm mb-1">Browse Files or Drag & Drop</div>
+                            <div class="text-zinc-500 text-xs">Images (JPG/PNG) & Documents (PDF) accepted</div>
+                            <input type="file" id="fileInput" class="hidden" multiple accept="image/*,.pdf,.doc,.docx" onchange="handleFiles(this.files)" />
                         </div>
-                        <div id="imagePreviewContainer" class="mt-4 grid grid-cols-4 sm:grid-cols-6 gap-3 empty:hidden"></div>
+                        
+                        <!-- Uploaded Preview Area -->
+                        <div id="previewArea" class="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-4 hidden"></div>
                     </div>
 
-                    <button type="submit" id="submitBtn" class="w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl flex justify-center items-center gap-2 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] text-lg border border-purple-500/50">
+                    <button id="submitBtn" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl flex justify-center items-center gap-2 transition-all duration-300 shadow-[0_0_20px_rgba(168,85,247,0.3)] mt-8" onclick="submitReceipt()">
                         <span>Submit Receipt</span>
                         <div class="loader" id="submitLoader"></div>
                     </button>
-                </form>
-
-                <div class="mt-8 pt-4 border-t border-zinc-800 flex flex-col items-center gap-1">
-                    <span class="text-zinc-600 text-xs tracking-wider">© <span id="year"></span> Canyon Activities Board</span>
-                    <button class="opacity-50 hover:opacity-100 transition-opacity uppercase tracking-widest bg-transparent border-none text-[10px] cursor-pointer text-zinc-500 p-1" onclick="showGate()">Staff Access</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- SUCCESS VIEW -->
-        <div id="successView" class="view mx-auto w-full max-w-md">
-            <div class="glass-card primary-card rounded-3xl p-8 text-center">
-                <div class="w-20 h-20 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6 text-white shadow-[0_0_30px_rgba(16,185,129,0.5)] border border-emerald-400/30">
-                    <i data-lucide="check" class="w-10 h-10"></i>
-                </div>
-                <h2 class="text-3xl font-bold mb-2 tracking-tight text-white">Submitted!</h2>
-                <p class="text-zinc-400 mb-8 text-sm leading-relaxed">Your receipt has been securely uploaded and routed to the team manager.</p>
-                <button class="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold py-3.5 rounded-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-lg text-base" onclick="resetForm()">
-                    Submit Another Receipt
-                </button>
-            </div>
-        </div>
-
-        <!-- DASHBOARD VIEW -->
-        <div id="dashboardView" class="view max-w-7xl w-full mx-auto">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 sm:mb-8 glass-card p-4 sm:p-5 rounded-2xl border-white/5">
-                <div>
-                    <h2 class="text-2xl font-bold text-white px-2">Master Receipts</h2>
-                    <p class="text-zinc-400 text-sm px-2 mt-1">Review team expenditures and receipts.</p>
-                </div>
-                <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                    <button onclick="switchView('settings')" class="flex-1 md:flex-none justify-center bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white py-2.5 px-4 rounded-xl text-sm transition-all flex items-center gap-2 font-medium">
-                        <i data-lucide="settings" class="w-4 h-4"></i> Alert Routing
-                    </button>
-                    <button onclick="exitAdmin()" class="w-full md:w-auto justify-center bg-gradient-to-r from-blue-600 to-purple-600 border border-purple-500/50 text-white py-2.5 px-6 rounded-xl text-sm font-medium hover:opacity-90 transition-all flex items-center gap-2">
-                        Exit Admin
-                    </button>
-                </div>
-            </div>
-            <div id="admin-teamCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"></div>
-        </div>
-
-        <!-- SETTINGS VIEW -->
-        <div id="settingsView" class="view max-w-6xl w-full mx-auto">
-            <div class="glass-card rounded-3xl p-5 sm:p-8">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-zinc-800 pb-6">
-                    <div>
-                        <h2 class="text-2xl font-bold tracking-tight text-white">System Settings</h2>
-                        <p class="text-zinc-400 text-sm mt-1">Configure form questions, dropdowns, and staff alerts.</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button class="justify-center bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500/50 text-emerald-400 py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 font-medium" onclick="saveSettings()">
-                            <i data-lucide="save" class="w-4 h-4"></i> Save Settings <div class="loader" id="saveSettingsLoader"></div>
-                        </button>
-                        <button class="justify-center bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 font-medium" onclick="switchView('dashboard')">
-                            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
-                        </button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <!-- Teams Config -->
-                    <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5 flex flex-col">
-                        <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4 flex justify-between">
-                            <span>Manage Teams (Dropdown)</span>
-                            <span id="teamCountBadge" class="text-zinc-500">0</span>
-                        </div>
-                        <div class="flex gap-2 mb-4">
-                            <input type="text" id="newTeamName" class="control-item !p-3 !text-sm flex-1" placeholder="New Team Name" onkeyup="if(event.key==='Enter') addTeam()"/>
-                            <button class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white px-4 rounded-xl transition" onclick="addTeam()">Add</button>
-                        </div>
-                        <div id="settings-teamList" class="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-1"></div>
-                    </div>
                     
-                    <!-- Questions Config -->
-                    <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5 flex flex-col">
-                        <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4 flex justify-between">
-                            <span>Customize Questions</span>
-                            <button class="text-[10px] bg-zinc-800 hover:bg-zinc-700 px-2 py-1 rounded text-zinc-300 transition" onclick="resetFormConfig()">Reset Defaults</button>
-                        </div>
-                        <div id="settings-formConfigList" class="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1"></div>
+                    <div class="mt-6 pt-4 border-t border-zinc-800 flex flex-col items-center gap-1">
+                        <button class="opacity-50 hover:opacity-100 transition-opacity uppercase tracking-widest bg-transparent border-none text-[10px] cursor-pointer text-zinc-500 p-1" onclick="showGate()">Admin Access</button>
                     </div>
                 </div>
+            </div>
 
-                <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5 mb-6">
-                    <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4">Add Staff Member Alert</div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                        <input type="text" id="newStaffName" class="control-item !p-3 !text-sm" placeholder="Staff Name" />
-                        <input type="email" id="newStaffEmail" class="control-item !p-3 !text-sm" placeholder="Staff Email" />
+            <!-- SUCCESS VIEW -->
+            <div id="successView" class="view max-w-md w-full mx-auto">
+                <div class="glass-card primary-card rounded-3xl p-8 text-center">
+                    <div class="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 text-white shadow-[0_0_30px_rgba(168,85,247,0.5)]">
+                        <i data-lucide="check" class="w-10 h-10"></i>
                     </div>
-                    <div class="flex flex-col sm:flex-row gap-3">
-                        <select id="newStaffTeams" class="control-item !p-3 !text-sm flex-1" multiple size="4" title="Hold Ctrl/Cmd to select multiple teams">
-                            <!-- Populated dynamically -->
-                        </select>
-                        <button class="bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 border border-purple-500/50 text-white font-bold py-3 px-6 rounded-xl transition shadow-md shrink-0 self-start" onclick="addStaff()">
-                            Add Staff
+                    <h2 class="text-3xl font-bold mb-3 text-white">Submitted!</h2>
+                    <p class="text-zinc-400 mb-8 text-sm leading-relaxed">Your receipt has been logged. The assigned staff member has been notified.</p>
+                    <button class="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3.5 rounded-xl transition-all" onclick="resetForm(); switchView('form')">
+                        Submit Another
+                    </button>
+                </div>
+            </div>
+
+            <!-- ADMIN DASHBOARD -->
+            <div id="dashboardView" class="view max-w-7xl w-full mx-auto">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 sm:mb-8 glass-card p-4 sm:p-5 rounded-2xl border-white/5">
+                    <div>
+                        <h2 class="text-xl font-bold text-white mb-1">Receipt Dashboard</h2>
+                        <p class="text-zinc-400 text-sm">Reviewing internal team expenses.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                        <button onclick="switchView('settings')" class="flex-1 md:flex-none justify-center bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white py-2.5 px-4 rounded-xl text-sm transition-all flex items-center gap-2 font-medium">
+                            <i data-lucide="settings" class="w-4 h-4"></i> System Settings
+                        </button>
+                        <button onclick="exitAdmin()" class="w-full md:w-auto justify-center bg-gradient-to-r from-blue-600 to-purple-600 border border-purple-500/50 text-white py-2.5 px-6 rounded-xl text-sm font-medium transition-all flex items-center gap-2">
+                            Exit Admin
                         </button>
                     </div>
-                    <p class="text-[10px] text-zinc-500 mt-2">Hold Ctrl (Windows) or Cmd (Mac) to select multiple teams.</p>
                 </div>
-
-                <div class="flex justify-between items-center mb-3">
-                    <span class="text-purple-400 text-xs font-bold tracking-wider uppercase">Configured Staff Alerts</span>
-                    <span class="text-xs font-bold bg-zinc-800 text-zinc-300 px-2 py-1 rounded-md" id="staffCountBadge">0</span>
+                <!-- Grids for Team Breakdowns -->
+                <div id="admin-dashboardGrids" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Injected by JS -->
                 </div>
-                <div id="settings-staffList" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
             </div>
-        </div>
+
+            <!-- ADMIN SETTINGS -->
+            <div id="settingsView" class="view max-w-5xl w-full mx-auto">
+                <div class="glass-card rounded-3xl p-6 sm:p-10">
+                    
+                    <div class="flex justify-between items-center border-b border-zinc-800 pb-6 mb-6">
+                        <h2 class="text-2xl font-bold text-white">System Settings</h2>
+                        <div class="flex gap-2">
+                            <button class="justify-center bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500/50 text-emerald-400 py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 font-medium" onclick="saveSettings()">
+                                <i data-lucide="save" class="w-4 h-4"></i> Save Settings <div class="loader" id="saveSettingsLoader"></div>
+                            </button>
+                            <button class="justify-center bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 font-medium" onclick="switchView('dashboard')">
+                                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Security Config -->
+                    <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5 mb-6">
+                        <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4">Security & Access</div>
+                        <div class="flex gap-3 items-center">
+                            <input type="password" id="newAdminPass" class="control-item !p-3 !text-sm flex-1 no-save-pass" placeholder="Change Admin Password..." autocomplete="new-password" spellcheck="false" />
+                        </div>
+                        <p class="text-[10px] text-zinc-500 mt-2">Leave blank to keep the current password. Changes apply immediately upon saving.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <!-- Teams Config -->
+                        <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5">
+                            <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4 flex justify-between">
+                                <span>Dropdown Teams</span> <span id="teamCount">0</span>
+                            </div>
+                            <div class="flex gap-2 mb-4">
+                                <input type="text" id="newTeamInput" class="control-item !p-2 flex-1" placeholder="Add new team..." />
+                                <button class="bg-zinc-800 text-white px-4 rounded-xl" onclick="addTeam()">Add</button>
+                            </div>
+                            <div id="settings-teamList" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1"></div>
+                        </div>
+
+                        <!-- Staff Config -->
+                        <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5">
+                            <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4 flex justify-between">
+                                <span>Staff Alert Routing</span> <span id="staffCount">0</span>
+                            </div>
+                            <div class="flex flex-col gap-2 mb-4">
+                                <input type="text" id="newStaffName" class="control-item !p-2" placeholder="Staff Name" />
+                                <input type="email" id="newStaffEmail" class="control-item !p-2" placeholder="Staff Email" />
+                                <div class="flex gap-2 items-start">
+                                    <select id="newStaffTeams" class="control-item !p-2" multiple size="3"></select>
+                                    <button class="bg-zinc-800 text-white px-4 py-2 h-full rounded-xl" onclick="addStaff()">Add</button>
+                                </div>
+                                <p class="text-[10px] text-zinc-500">Hold Ctrl/Cmd to assign multiple teams.</p>
+                            </div>
+                            <div id="settings-staffList" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Form Customizer -->
+                    <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5">
+                        <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4">Customize Form Questions</div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="formCustomizerList">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> 
     </main>
 
-    <!-- GATE MODAL (Admin Login) -->
+    <!-- Admin Login Modal -->
     <div id="gateModal" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4">
         <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="hideGate()"></div>
-        <div class="relative w-full max-w-sm glass-card rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl border-purple-500/30 transition-all hover:scale-[1.01]">
+        <div class="relative w-full max-w-sm glass-card rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl border-purple-500/30">
             <div class="w-16 h-16 bg-zinc-900 rounded-2xl p-3 mb-4 flex items-center justify-center border border-zinc-800">
                 <i data-lucide="lock" class="w-8 h-8 text-zinc-400"></i>
             </div>
-            <h3 class="text-2xl font-bold mb-1 text-white">Staff Login</h3>
-            <p class="text-zinc-400 text-sm mb-6">Enter password to view submitted receipts.</p>
+            <h3 class="text-2xl font-bold mb-1 text-white">Admin Login</h3>
+            <p class="text-zinc-400 text-sm mb-6">Enter password to access submissions.</p>
+            
             <input type="password" id="adminPass" class="control-item text-center mb-6 no-save-pass" placeholder="Password" onkeyup="if(event.key==='Enter') verifyAdmin()"/>
-            <button class="w-full bg-gradient-to-r from-blue-600 to-purple-600 border border-purple-500/50 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 transition-all hover:opacity-90" id="gateBtn" onclick="verifyAdmin()">
+            
+            <button class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2" id="gateBtn" onclick="verifyAdmin()">
                 <span>Authorize</span> <div class="loader" id="gateLoader"></div>
             </button>
         </div>
     </div>
 
-    <!-- RECEIPT DETAIL MODAL -->
+    <!-- Receipt Detail Modal -->
     <div id="receiptModal" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4">
         <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="closeReceiptModal()"></div>
-        <div class="relative w-full max-w-2xl glass-card rounded-3xl p-5 sm:p-8 flex flex-col shadow-2xl border-purple-500/30 max-h-[90vh]">
+        <div class="relative w-full max-w-2xl glass-card rounded-3xl p-6 sm:p-8 flex flex-col shadow-2xl border-purple-500/30 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-start border-b border-zinc-800 pb-4 mb-4">
                 <div>
-                    <h3 class="text-2xl font-bold text-white pr-4 leading-tight" id="modalReason">Event Reason</h3>
-                    <p class="text-sm mt-1 text-zinc-400" id="modalMeta"></p>
+                    <h3 class="text-2xl font-bold text-white" id="modalName">Name</h3>
+                    <p class="text-purple-400 text-sm font-medium" id="modalTeam">Team</p>
                 </div>
-                <button class="text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 p-2 rounded-xl transition shrink-0" onclick="closeReceiptModal()">
+                <button class="text-zinc-400 hover:text-white bg-zinc-800 p-2.5 rounded-xl" onclick="closeReceiptModal()">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50">
-                <div><div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Amount</div><div class="text-emerald-400 font-bold" id="modalAmount"></div></div>
-                <div><div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Team</div><div class="text-white font-medium text-sm" id="modalTeam"></div></div>
-                <div><div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Card</div><div class="text-white font-medium text-sm" id="modalCard"></div></div>
-                <div><div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Attendees</div><div class="text-white font-medium text-sm" id="modalAttendees"></div></div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                    <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Date</div>
+                    <div class="text-white text-sm" id="modalDate"></div>
+                </div>
+                <div class="bg-emerald-900/20 p-3 rounded-xl border border-emerald-500/20">
+                    <div class="text-[10px] text-emerald-500 uppercase font-bold tracking-wider mb-1">Amount</div>
+                    <div class="text-emerald-400 text-xl font-bold" id="modalAmount"></div>
+                </div>
+                <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                    <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Card (Last 4)</div>
+                    <div class="text-white text-sm" id="modalCard"></div>
+                </div>
+                <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                    <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Attendees</div>
+                    <div class="text-white text-sm" id="modalAttendees"></div>
+                </div>
+                <div class="col-span-2 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
+                    <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Reason / Event</div>
+                    <div class="text-white text-sm whitespace-pre-wrap" id="modalReason"></div>
+                </div>
             </div>
-            <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-3">Attached Receipts</div>
-            <div id="modalPhotos" class="flex-1 overflow-y-auto pr-1 flex flex-col gap-4"></div>
+
+            <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-3">Attached Files</div>
+            <div id="modalPhotos" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
         </div>
     </div>
 
-    <!-- TOAST -->
-    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-[450px] px-6 py-4 rounded-2xl z-[2000] text-center font-bold text-sm shadow-2xl border hidden"></div>
+    <!-- Toast Notification -->
+    <div id="toast" class="glass-card !bg-zinc-900 !text-white font-bold shadow-xl border !border-purple-500/50">Update Successful</div>
 
-    <script>
+<script>
+        // ==========================================
+        // CONFIGURATION (SUPABASE + GOOGLE APPS SCRIPT)
+        // ==========================================
         const SUPABASE_URL = "https://nmmshjdknmuzpgpquwec.supabase.co";
         const SUPABASE_KEY = "sb_publishable_PCxlxywY7W6K3TmMrSnSsw_NPXKugoZ";
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwz15h52GT4d2SV8S7QjYK7xUkUTL4zfjLwgAK9LQhS0yK79D0RnGMnq8Lnu-3WG6vg/exec";
         
-        // PASTE YOUR NEW EMAIL WEB APP URL HERE
+        // Proxy to upload images directly to Google Drive
+        const DRIVE_PROXY_URL = "https://script.google.com/macros/s/AKfycbwz15h52GT4d2SV8S7QjYK7xUkUTL4zfjLwgAK9LQhS0yK79D0RnGMnq8Lnu-3WG6vg/exec";
+        
+        // Triggers the automated email to Staff
         const EMAIL_GAS_URL = "https://script.google.com/macros/s/AKfycbxmdtIZ6i0Av0pDFdu0380YfClaY15V1eYmcFhWyiHl_qjUskC0D7Q4mpMToOy8DFVytA/exec";
 
+        // Supabase REST helper
         const sb = {
             _h(extra = {}) {
                 return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', ...extra };
@@ -418,255 +459,193 @@
             }
         };
 
-        // --- STATE MANAGEMENT ---
+        // --- APP STATE ---
         let receipts = [];
         let staff = [];
         let currentUploadedImages = []; 
+        let adminPassword = 'Staff49!';
         let TEAMS = ["Special Events", "Student Markets", "Marketing", "The Arts", "Night Life", "Pastimes"];
+        
         let formConfig = {
-            reqName: { label: "First & Last Name", placeholder: "Your Full Name" },
-            reqTeam: { label: "CAB Team" },
-            reqDate: { label: "Date of Purchase" },
-            reqAmount: { label: "Amount", placeholder: "0.00" },
-            reqCard: { label: "Card Last 4 #", placeholder: "e.g. 1234" },
-            reqReason: { label: "Event Name / Reason", placeholder: "e.g. CAB Supplies for GGT 2026" },
-            reqAttendees: { label: "Attendees", placeholder: "Est. count" }
+            reqName: { label: "First & Last Name *", placeholder: "e.g. Jane Doe" },
+            reqTeam: { label: "CAB Team *", placeholder: "Select Team..." },
+            reqDate: { label: "Date of Purchase *", placeholder: "" },
+            reqAmount: { label: "Amount ($) *", placeholder: "0.00" },
+            reqCard: { label: "Last 4 #s of Card *", placeholder: "e.g. 1234" },
+            reqReason: { label: "Event Name and/or Reason for Expense *", placeholder: "e.g. CAB Supplies for GGT 2026" },
+            reqAttendees: { label: "Estimated Attendees", placeholder: "Leave blank if N/A" }
         };
-        const defaultFormConfig = JSON.parse(JSON.stringify(formConfig));
 
+        // --- INITIALIZATION ---
         async function init() {
-            const yearEl = document.getElementById('year');
-            if (yearEl) yearEl.textContent = new Date().getFullYear();
-            
             lucide.createIcons();
             
-            // Check if dropzone exists before setting up (to avoid null error)
-            const dropzone = document.getElementById('dropzone');
-            if(dropzone) {
-                setupDropzone();
-            }
-            
-            const dateInput = document.getElementById('reqDate');
-            if(dateInput) {
-                dateInput.valueAsDate = new Date();
-            }
-
             try {
-                const [receiptRows, settingsRows] = await Promise.all([
-                    sb.select('receipts', 'order=timestamp.desc').catch(() => []), 
-                    sb.select('settings').catch(() => [])
-                ]);
-
-                if (receiptRows && receiptRows.length > 0) {
-                    receipts = receiptRows.map(r => ({
-                        id: r.id, timestamp: r.timestamp, name: r.name, team: r.team, 
-                        date: r.date, amount: r.amount, card: r.card, reason: r.reason, 
-                        attendees: r.attendees, photos: JSON.parse(r.photos_json || '[]')
-                    }));
-                } else {
-                    const savedReceipts = localStorage.getItem('cab_receipts');
-                    if (savedReceipts) receipts = JSON.parse(savedReceipts);
-                }
-
+                const settingsRows = await sb.select('settings');
+                
                 if (settingsRows && settingsRows.length > 0) {
                     const staffRow = settingsRows.find(r => r.key === 'ReceiptStaff');
                     if (staffRow) staff = JSON.parse(staffRow.value || '[]');
-                    
+
                     const teamsRow = settingsRows.find(r => r.key === 'ReceiptTeams');
                     if (teamsRow) TEAMS = JSON.parse(teamsRow.value || '[]');
-                    
+
                     const configRow = settingsRows.find(r => r.key === 'ReceiptFormConfig');
                     if (configRow) formConfig = JSON.parse(configRow.value || '{}');
+
+                    const passRow = settingsRows.find(r => r.key === 'AdminPassword');
+                    if (passRow) adminPassword = passRow.value;
                 } else {
+                    // Fallback to local storage if DB fails/is empty on first load
                     const savedStaff = localStorage.getItem('cab_staff');
                     if (savedStaff) staff = JSON.parse(savedStaff);
-                    
+
                     const savedTeams = localStorage.getItem('cab_teams');
                     if (savedTeams) TEAMS = JSON.parse(savedTeams);
-                    
+
                     const savedConfig = localStorage.getItem('cab_formConfig');
                     if (savedConfig) formConfig = JSON.parse(savedConfig);
+
+                    const savedPass = localStorage.getItem('cab_adminPass');
+                    if (savedPass) adminPassword = savedPass;
                 }
             } catch (e) {
-                console.error("Initialization error:", e);
-                const savedReceipts = localStorage.getItem('cab_receipts');
-                if (savedReceipts) receipts = JSON.parse(savedReceipts);
-                const savedStaff = localStorage.getItem('cab_staff');
-                if (savedStaff) staff = JSON.parse(savedStaff);
-                const savedTeams = localStorage.getItem('cab_teams');
-                if (savedTeams) TEAMS = JSON.parse(savedTeams);
-                const savedConfig = localStorage.getItem('cab_formConfig');
-                if (savedConfig) formConfig = JSON.parse(savedConfig);
+                console.log("Could not fetch remote settings, using local fallback");
             }
-            
+
             applyFormConfig();
+            setupDragAndDrop();
         }
 
         function applyFormConfig() {
-            // Update question labels and placeholders
-            const mappings = [
-                { id: 'reqName', key: 'reqName' }, { id: 'reqTeam', key: 'reqTeam' },
-                { id: 'reqDate', key: 'reqDate' }, { id: 'reqAmount', key: 'reqAmount' },
-                { id: 'reqCard', key: 'reqCard' }, { id: 'reqReason', key: 'reqReason' },
-                { id: 'reqAttendees', key: 'reqAttendees' }
-            ];
-            
-            mappings.forEach(m => {
-                const labelEl = document.getElementById('lbl' + m.id.charAt(0).toUpperCase() + m.id.slice(1));
-                const inputEl = document.getElementById(m.id);
-                if(labelEl && formConfig[m.key] && formConfig[m.key].label) labelEl.textContent = formConfig[m.key].label;
-                if(inputEl && formConfig[m.key] && formConfig[m.key].placeholder !== undefined) inputEl.placeholder = formConfig[m.key].placeholder;
+            Object.keys(formConfig).forEach(key => {
+                const el = document.getElementById(key);
+                const lbl = document.getElementById(`lbl_${key}`);
+                if(lbl) lbl.textContent = formConfig[key].label;
+                if(el && el.tagName !== 'SELECT') el.placeholder = formConfig[key].placeholder;
             });
             
-            // Update Team Dropdowns
             const teamSelect = document.getElementById('reqTeam');
-            if(teamSelect) teamSelect.innerHTML = '<option value="" disabled selected>Select Team...</option>' + TEAMS.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
-            
-            const staffTeamSelect = document.getElementById('newStaffTeams');
-            if(staffTeamSelect) staffTeamSelect.innerHTML = TEAMS.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
+            teamSelect.innerHTML = `<option value="">${formConfig.reqTeam.placeholder}</option>` + 
+                                   TEAMS.map(t => `<option value="${t}">${t}</option>`).join('');
         }
 
-        // --- UI NAVIGATION ---
-        function switchView(viewName) {
-            document.querySelectorAll('.view').forEach(v => {
-                v.classList.remove('active');
-                v.style.display = 'none'; 
-            });
-            const target = document.getElementById(viewName + 'View');
-            if (target) {
-                target.style.display = 'block';
-                setTimeout(() => target.classList.add('active'), 10);
-            }
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        // --- DRAG AND DROP / FILE HANDLING ---
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dragDropZone');
             
-            if(viewName === 'settings') renderSettings();
-        }
-
-        function showToast(msg, type = 'info') { 
-            const t = document.getElementById('toast'); 
-            t.innerHTML = msg; 
-            
-            t.className = 'fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-[450px] px-6 py-4 rounded-2xl z-[2000] text-center font-bold text-sm shadow-2xl border';
-            
-            if (type === 'error') {
-                t.classList.add('bg-zinc-900', 'text-rose-400', 'border-rose-500/50');
-            } else if (type === 'success') {
-                t.classList.add('bg-zinc-900', 'text-emerald-400', 'border-emerald-500/50');
-            } else {
-                t.classList.add('bg-zinc-900', 'text-blue-400', 'border-blue-500/50');
-            }
-            
-            t.style.display = 'block'; 
-            setTimeout(() => { t.style.display = 'none'; }, 5000); 
-        }
-
-        // --- DRAG AND DROP & FILE HANDLING ---
-        function setupDropzone() {
-            const dropzone = document.getElementById('dropzone');
-            
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropzone.addEventListener(eventName, preventDefaults, false);
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+                dropZone.addEventListener(evt, (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                }, false);
             });
 
-            function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropzone.addEventListener(eventName, () => dropzone.classList.add('drag-active'), false);
+            ['dragenter', 'dragover'].forEach(evt => {
+                dropZone.addEventListener(evt, () => dropZone.classList.add('dragover'), false);
             });
 
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropzone.addEventListener(eventName, () => dropzone.classList.remove('drag-active'), false);
+            ['dragleave', 'drop'].forEach(evt => {
+                dropZone.addEventListener(evt, () => dropZone.classList.remove('dragover'), false);
             });
 
-            dropzone.addEventListener('drop', handleDrop, false);
-        }
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        }
-
-        function handleFileSelect(e) {
-            const files = e.target.files;
-            handleFiles(files);
+            dropZone.addEventListener('drop', (e) => {
+                handleFiles(e.dataTransfer.files);
+            }, false);
         }
 
         function handleFiles(files) {
-            const validFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
-            if (validFiles.length === 0) return;
+            Array.from(files).forEach(file => {
+                if (file.size > 5 * 1024 * 1024) { // 5MB sanity limit per file for base64 uploading
+                    return showToast(`File ${file.name} is too large (max 5MB)`, true);
+                }
 
-            validFiles.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    const base64Str = e.target.result;
-                    currentUploadedImages.push(base64Str);
-                    renderImagePreviews();
+                    const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                    const isDoc = file.type.includes('word') || file.name.toLowerCase().endsWith('.doc') || file.name.toLowerCase().endsWith('.docx');
+                    
+                    currentUploadedImages.push({
+                        name: file.name,
+                        type: file.type,
+                        data: e.target.result, // Data URL
+                        isPDF: isPDF,
+                        isDoc: isDoc
+                    });
+                    renderPreviews();
                 };
                 reader.readAsDataURL(file);
             });
-            
-            document.getElementById('fileInput').value = "";
         }
 
-        function renderImagePreviews() {
-            const container = document.getElementById('imagePreviewContainer');
-            document.getElementById('photoCount').textContent = currentUploadedImages.length;
-            
-            if(currentUploadedImages.length === 0) {
-                container.innerHTML = "";
+        function renderPreviews() {
+            const area = document.getElementById('previewArea');
+            if (currentUploadedImages.length === 0) {
+                area.classList.add('hidden');
                 return;
             }
+            area.classList.remove('hidden');
+            
+            area.innerHTML = currentUploadedImages.map((imgObj, idx) => {
+                let displayContent = '';
+                if (imgObj.isPDF || imgObj.isDoc) {
+                    displayContent = `
+                        <div class="file-icon flex flex-col p-2 text-center text-[10px] break-words">
+                            <i data-lucide="file-text" class="w-6 h-6 mb-1 mx-auto text-purple-400"></i>
+                            <span class="truncate w-full">${imgObj.name}</span>
+                        </div>`;
+                } else {
+                    displayContent = `<img src="${imgObj.data}" class="preview-image" alt="Preview" />`;
+                }
 
-            container.innerHTML = currentUploadedImages.map((src, index) => `
-                <div class="relative group">
-                    <img src="${src}" class="img-preview-thumb" alt="Receipt Photo" />
-                    <button type="button" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition shadow-lg scale-75 hover:scale-90" onclick="removeImage(${index})">
-                        <i data-lucide="x" class="w-4 h-4"></i>
+                return `
+                <div class="relative group aspect-square rounded-lg border border-zinc-700 bg-zinc-800 p-1 flex items-center justify-center overflow-hidden">
+                    ${displayContent}
+                    <button class="absolute top-1 right-1 bg-rose-500/80 text-white rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-md shadow-md" onclick="removeImage(${idx}); event.stopPropagation();">
+                        <i data-lucide="x" class="w-3 h-3"></i>
                     </button>
                 </div>
-            `).join('');
+                `;
+            }).join('');
             lucide.createIcons();
         }
 
-        function removeImage(index) {
-            currentUploadedImages.splice(index, 1);
-            renderImagePreviews();
+        function removeImage(idx) {
+            currentUploadedImages.splice(idx, 1);
+            renderPreviews();
         }
 
-        // --- FORM SUBMISSION ---
-        async function uploadToDrive(base64Str, index) {
-            const base64Data = base64Str.split(',')[1];
-            const mimeType = base64Str.split(';')[0].split(':')[1];
-            const ext = mimeType.split('/')[1] || 'jpg';
-            const filename = `receipt_${Date.now()}_${index}.${ext}`;
+        // --- SUBMISSION PROCESS ---
+        async function uploadFileToProxy(imgObj) {
+            // Strip the metadata prefix (e.g., "data:image/jpeg;base64,") to get raw base64
+            const base64Data = imgObj.data.split(',')[1];
             
-            const payload = { base64: base64Data, mimeType: mimeType, filename: filename };
-            
-            const res = await fetch(GAS_URL, {
-                method: "POST",
-                headers: { "Content-Type": "text/plain" }, 
+            const payload = {
+                base64: base64Data,
+                mimeType: imgObj.type || 'application/octet-stream',
+                filename: imgObj.name
+            };
+
+            const response = await fetch(DRIVE_PROXY_URL, {
+                method: 'POST',
                 body: JSON.stringify(payload)
             });
-            
-            const data = await res.json();
-            if (!data.success) throw new Error(data.error);
-            return data.url;
+
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || "Proxy upload failed");
+            return result.url; // The direct Google Drive view URL
         }
 
-        async function handleFormSubmit(e) {
-            e.preventDefault();
-
+        async function submitReceipt() {
             const name = document.getElementById('reqName').value.trim();
             const team = document.getElementById('reqTeam').value;
             const date = document.getElementById('reqDate').value;
-            const amount = parseFloat(document.getElementById('reqAmount').value);
+            const amount = document.getElementById('reqAmount').value;
             const card = document.getElementById('reqCard').value.trim();
             const reason = document.getElementById('reqReason').value.trim();
-            const attendees = parseInt(document.getElementById('reqAttendees').value) || 0;
+            const attendees = document.getElementById('reqAttendees').value || 0;
 
-            if (currentUploadedImages.length === 0) {
-                return showToast("Please upload at least one receipt photo.", "error");
+            if(!name || !team || !date || !amount || !card || !reason || currentUploadedImages.length === 0) {
+                return showToast("Please fill all required fields and attach at least one file.", true);
             }
 
             const btn = document.getElementById('submitBtn');
@@ -674,94 +653,98 @@
             btn.disabled = true; loader.style.display = 'block';
 
             try {
-                showToast("Uploading receipts to Drive...", "info");
+                showToast("Uploading attachments to Drive...", false);
                 
-                const uploadPromises = currentUploadedImages.map((base64Str, idx) => uploadToDrive(base64Str, idx));
-                const uploadedUrls = await Promise.all(uploadPromises);
-
-                const receiptRecord = {
-                    id: 'REC-' + Date.now(),
-                    timestamp: new Date().toISOString(),
-                    name, team, date, amount, card, reason, attendees,
-                    photos: uploadedUrls
-                };
-
-                const dbRecord = {
-                    id: receiptRecord.id,
-                    timestamp: receiptRecord.timestamp,
-                    name: receiptRecord.name,
-                    team: receiptRecord.team,
-                    date: receiptRecord.date,
-                    amount: receiptRecord.amount,
-                    card: receiptRecord.card,
-                    reason: receiptRecord.reason,
-                    attendees: receiptRecord.attendees,
-                    photos_json: JSON.stringify(receiptRecord.photos)
-                };
-
-                await sb.insert('receipts', dbRecord);
-
-                receipts.unshift(receiptRecord);
-                localStorage.setItem('cab_receipts', JSON.stringify(receipts));
-
-                const staffToNotify = staff.filter(s => s.teams.includes(team));
-                const staffNames = staffToNotify.map(s => s.name).join(', ');
-                const staffEmails = staffToNotify.map(s => s.email);
-                
-                // --- TRIGGER EMAIL SCRIPT ---
-                if (staffEmails.length > 0 && EMAIL_GAS_URL && EMAIL_GAS_URL !== "YOUR_NEW_EMAIL_SCRIPT_URL_HERE") {
-                    showToast("Routing to staff...", "info");
-                    
-                    const emailPayload = {
-                        staffEmails: staffEmails,
-                        name: receiptRecord.name,
-                        team: receiptRecord.team,
-                        date: receiptRecord.date,
-                        amount: receiptRecord.amount,
-                        card: receiptRecord.card,
-                        reason: receiptRecord.reason,
-                        attendees: receiptRecord.attendees,
-                        photos: receiptRecord.photos
-                    };
-
-                    // Fire and forget (don't await so the UI stays snappy)
-                    fetch(EMAIL_GAS_URL, {
-                        method: "POST",
-                        headers: { "Content-Type": "text/plain" }, // Bypass CORS preflight
-                        body: JSON.stringify(emailPayload)
-                    }).catch(err => console.error("Email trigger failed:", err));
+                // Upload all files to Drive proxy and collect URLs
+                const driveUrls = [];
+                for (const imgObj of currentUploadedImages) {
+                    const url = await uploadFileToProxy(imgObj);
+                    driveUrls.push(url);
                 }
+
+                showToast("Saving record to database...", false);
+
+                // Build Record
+                const receiptId = Date.now().toString();
+                const record = {
+                    id: receiptId,
+                    name: name,
+                    team: team,
+                    date: date,
+                    amount: parseFloat(amount),
+                    card: card,
+                    reason: reason,
+                    attendees: parseInt(attendees),
+                    photos_json: JSON.stringify(driveUrls)
+                };
+
+                // Insert to Supabase Database
+                await sb.insert('receipts', record);
+
+                showToast("Dispatching email notifications...", false);
                 
-                let toastMsg = `Receipt saved securely!`;
+                // Determine staff to email based on Team
+                const staffToNotify = staff.filter(s => s.teams.includes(team)).map(s => s.email);
+                
                 if (staffToNotify.length > 0) {
-                    toastMsg += `<br><span class="text-xs text-zinc-400 mt-1 block">Routed to: ${staffNames}</span>`;
+                    await fetch(EMAIL_GAS_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            staffEmails: staffToNotify,
+                            name: name,
+                            team: team,
+                            date: date,
+                            amount: amount,
+                            card: card,
+                            reason: reason,
+                            attendees: attendees,
+                            photos: driveUrls
+                        })
+                    });
                 }
-                
-                showToast(toastMsg, "success");
+
+                fireConfetti();
                 switchView('success');
-                
-            } catch(err) {
-                console.error("Submit Error:", err);
-                showToast("Failed to submit: " + err.message, "error");
+
+            } catch (e) {
+                console.error("Submission error:", e);
+                showToast("Submission failed: " + e.message, true);
             } finally {
                 btn.disabled = false; loader.style.display = 'none';
             }
         }
 
         function resetForm() {
-            document.getElementById('receiptForm').reset();
-            document.getElementById('reqDate').valueAsDate = new Date();
+            document.getElementById('reqName').value = '';
+            document.getElementById('reqTeam').value = '';
+            document.getElementById('reqDate').value = '';
+            document.getElementById('reqAmount').value = '';
+            document.getElementById('reqCard').value = '';
+            document.getElementById('reqReason').value = '';
+            document.getElementById('reqAttendees').value = '';
             currentUploadedImages = [];
-            renderImagePreviews();
-            switchView('form');
+            renderPreviews();
         }
 
-        // --- ADMIN GATE ---
+        // --- NAVIGATION ---
+        function switchView(viewName) {
+            document.querySelectorAll('.view').forEach(v => {
+                v.classList.remove('active');
+                v.style.display = 'none';
+            });
+            const target = document.getElementById(viewName + 'View');
+            if(target) {
+                target.style.display = 'block';
+                setTimeout(() => target.classList.add('active'), 10);
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- ADMIN AUTH & DASHBOARD ---
         function showGate() { 
             document.getElementById('gateModal').style.display = 'flex'; 
             document.getElementById('gateModal').classList.remove('hidden');
         }
-        
         function hideGate() { 
             document.getElementById('gateModal').style.display = 'none'; 
             document.getElementById('gateModal').classList.add('hidden');
@@ -770,120 +753,129 @@
 
         async function verifyAdmin() {
             const pass = document.getElementById('adminPass').value;
-            if(!pass) return showToast("Password Required", "error");
+            if(!pass) return showToast("Password Required", true);
 
             const btn = document.getElementById('gateBtn');
             const loader = document.getElementById('gateLoader');
             btn.disabled = true; loader.style.display = 'block';
 
-            await new Promise(r => setTimeout(r, 400));
+            try {
+                // Live check against DB in case another admin changed it recently
+                const pwRows = await sb.select('settings', 'key=eq.AdminPassword');
+                if (pwRows && pwRows.length > 0) {
+                    adminPassword = pwRows[0].value;
+                }
+            } catch (e) {
+                console.log("Could not fetch live password, using cached version.");
+            }
             
-            if (pass === 'Staff49!') {
+            if (pass === adminPassword) {
                 hideGate();
-                renderDashboard();
+                await renderDashboard(); // Fetch latest from DB
                 switchView('dashboard');
                 showToast("Access Granted");
             } else {
-                showToast("Incorrect Password", "error");
+                showToast("Incorrect Password", true);
             }
             
             btn.disabled = false; loader.style.display = 'none';
         }
 
         function exitAdmin() {
+            receipts = []; // clear cache out of memory
             switchView('form');
-            showToast("Admin session closed.");
         }
 
-        // --- ADMIN DASHBOARD ---
-        function formatCurrency(num) {
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
-        }
-        
-        function escapeHTML(str) {
-            if (!str) return '';
-            return str.toString().replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
-        }
+        async function renderDashboard() {
+            try {
+                const dbReceipts = await sb.select('receipts', 'order=timestamp.desc');
+                receipts = dbReceipts;
+            } catch (e) {
+                console.error("Failed to load receipts from DB", e);
+                showToast("Could not load latest submissions.", true);
+            }
 
-        function renderDashboard() {
-            const grid = document.getElementById('admin-teamCards');
-            if(!grid) return;
+            const grid = document.getElementById('admin-dashboardGrids');
             grid.innerHTML = "";
 
             TEAMS.forEach(teamName => {
                 const teamReceipts = receipts.filter(r => r.team === teamName);
-                let teamTotal = 0; 
-                let receiptListHTML = "";
-                
+                let totalSpent = 0;
+                let listHTML = "";
+
                 if (teamReceipts.length > 0) {
-                    // Sort newest first
-                    teamReceipts.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-                    
-                    receiptListHTML = teamReceipts.map(rec => {
-                        teamTotal += rec.amount;
-                        const dateStr = new Date(rec.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    listHTML = teamReceipts.map((r) => {
+                        totalSpent += parseFloat(r.amount);
+                        const dateStr = new Date(r.timestamp).toLocaleDateString();
+                        // Find index of this specific receipt in the global array to use in viewReceipt()
+                        const globalIdx = receipts.findIndex(x => x.id === r.id);
+                        
                         return `
-                            <div class="flex justify-between items-center py-2 border-b border-zinc-800/50 last:border-0 cursor-pointer hover:bg-zinc-800/50 rounded-lg px-2 -mx-2 transition gap-2" onclick="viewReceipt('${rec.id}')">
+                            <div class="flex justify-between items-center py-3 border-b border-zinc-800/50 last:border-0 cursor-pointer hover:bg-zinc-800/50 rounded-lg px-2 -mx-2 transition gap-2" onclick="viewReceipt(${globalIdx})">
                                 <div class="flex flex-col flex-1 min-w-0">
-                                    <span class="text-sm font-medium text-zinc-200 truncate">${escapeHTML(rec.name)}</span>
-                                    <span class="text-[10px] text-zinc-500 truncate">${dateStr} &bull; ${escapeHTML(rec.reason)}</span>
+                                    <span class="text-sm font-bold text-white truncate">${escapeHTML(r.name)}</span>
+                                    <span class="text-xs text-zinc-400 truncate">${escapeHTML(r.reason)}</span>
+                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
                                 </div>
-                                <span class="text-sm font-bold text-emerald-400 shrink-0">${formatCurrency(rec.amount)}</span>
+                                <span class="text-sm font-bold text-emerald-400 shrink-0 bg-emerald-900/20 px-2 py-1 rounded border border-emerald-500/20">$${parseFloat(r.amount).toFixed(2)}</span>
                             </div>
                         `;
                     }).join('');
                 } else {
-                    receiptListHTML = `<div class="text-xs text-zinc-500 italic py-2">No receipts submitted for this team.</div>`;
+                    listHTML = `<div class="text-xs text-zinc-500 italic py-2">No receipts submitted yet.</div>`;
                 }
 
-                const card = document.createElement('div');
-                card.className = "glass-card rounded-2xl border-white/5 flex flex-col transition hover:-translate-y-1 hover:border-purple-500/30 overflow-hidden";
-                card.innerHTML = `
-                    <div class="p-4 sm:p-5 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center gap-3">
-                        <div class="flex items-center gap-3 flex-1 min-w-0">
-                            <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700 text-purple-400 shrink-0"><i data-lucide="receipt" class="w-4 h-4"></i></div>
-                            <span class="font-bold text-white break-words leading-tight">${escapeHTML(teamName)}</span>
+                grid.innerHTML += `
+                    <div class="glass-card rounded-2xl border-white/5 flex flex-col transition hover:-translate-y-1 hover:border-purple-500/30 overflow-hidden">
+                        <div class="p-4 sm:p-5 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center gap-3">
+                            <div class="flex items-center gap-3 flex-1 min-w-0">
+                                <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700 text-purple-400 shrink-0"><i data-lucide="receipt" class="w-4 h-4"></i></div>
+                                <span class="font-bold text-white truncate">${escapeHTML(teamName)}</span>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Team Total</div>
+                                <div class="text-xl font-black text-emerald-400">$${totalSpent.toFixed(2)}</div>
+                            </div>
                         </div>
-                        <div class="text-right shrink-0">
-                            <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Team Total</div>
-                            <div class="text-xl font-black text-white leading-tight">${formatCurrency(teamTotal)}</div>
-                        </div>
+                        <div class="p-4 flex-1 flex flex-col gap-1 max-h-[300px] overflow-y-auto">${listHTML}</div>
                     </div>
-                    <div class="p-4 flex-1 flex flex-col gap-1 max-h-[300px] overflow-y-auto pr-2">${receiptListHTML}</div>
                 `;
-                grid.appendChild(card);
             });
             lucide.createIcons();
+            renderSettingsPanel();
         }
 
-        function viewReceipt(id) {
-            const rec = receipts.find(r => r.id === id);
-            if(!rec) return;
+        function viewReceipt(idx) {
+            const r = receipts[idx];
+            document.getElementById('modalName').textContent = r.name;
+            document.getElementById('modalTeam').textContent = r.team;
+            document.getElementById('modalDate').textContent = r.date;
+            document.getElementById('modalAmount').textContent = "$" + parseFloat(r.amount).toFixed(2);
+            document.getElementById('modalCard').textContent = "*" + r.card;
+            document.getElementById('modalReason').textContent = r.reason;
+            document.getElementById('modalAttendees').textContent = r.attendees || "N/A";
+            
+            const photoArea = document.getElementById('modalPhotos');
+            
+            let parsedPhotos = [];
+            try {
+                parsedPhotos = JSON.parse(r.photos_json || '[]');
+            } catch(e) { console.log(e); }
 
-            document.getElementById('modalReason').textContent = rec.reason;
-            document.getElementById('modalMeta').textContent = `Submitted by ${rec.name} on ${new Date(rec.date + 'T00:00:00').toLocaleDateString()}`;
-            document.getElementById('modalAmount').textContent = formatCurrency(rec.amount);
-            document.getElementById('modalTeam').textContent = rec.team;
-            document.getElementById('modalCard').textContent = `*${rec.card}`;
-            document.getElementById('modalAttendees').textContent = rec.attendees || '0';
-
-            const photoContainer = document.getElementById('modalPhotos');
-            if (rec.photos && rec.photos.length > 0) {
-                photoContainer.innerHTML = rec.photos.map(url => `
-                    <a href="${url}" target="_blank" class="block border border-zinc-700 rounded-xl overflow-hidden hover:border-purple-500 transition relative group">
-                        <img src="${url}" class="w-full h-auto max-h-[300px] object-cover" alt="Receipt Attachment" onerror="this.src='https://placehold.co/600x400/18181b/a855f7?text=Image+Not+Found'" />
-                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                            <span class="bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"><i data-lucide="external-link" class="w-4 h-4"></i> Open Original</span>
-                        </div>
+            if (parsedPhotos.length > 0) {
+                photoArea.innerHTML = parsedPhotos.map((url, i) => `
+                    <a href="${url}" target="_blank" class="block aspect-square rounded-xl bg-zinc-800 border border-zinc-700 hover:border-purple-500/50 overflow-hidden flex flex-col items-center justify-center transition group relative text-center p-2">
+                        <i data-lucide="external-link" class="w-6 h-6 text-zinc-400 group-hover:text-purple-400 mb-2 transition"></i>
+                        <span class="text-[10px] text-zinc-300 font-bold uppercase tracking-wider">View File ${i + 1}</span>
                     </a>
                 `).join('');
             } else {
-                photoContainer.innerHTML = `<div class="text-zinc-500 text-sm italic py-4">No attachments found.</div>`;
+                photoArea.innerHTML = `<div class="col-span-2 text-xs text-zinc-500 italic">No files attached.</div>`;
             }
-
+            
+            lucide.createIcons();
             document.getElementById('receiptModal').style.display = 'flex';
             document.getElementById('receiptModal').classList.remove('hidden');
-            lucide.createIcons();
         }
 
         function closeReceiptModal() {
@@ -902,115 +894,51 @@
                 if(plh) formConfig[key].placeholder = plh.value;
             });
 
+            const newPass = document.getElementById('newAdminPass').value.trim();
+
             localStorage.setItem('cab_staff', JSON.stringify(staff)); 
             localStorage.setItem('cab_teams', JSON.stringify(TEAMS)); 
             localStorage.setItem('cab_formConfig', JSON.stringify(formConfig)); 
+
+            const updates = [
+                { key: 'ReceiptStaff', value: JSON.stringify(staff) },
+                { key: 'ReceiptTeams', value: JSON.stringify(TEAMS) },
+                { key: 'ReceiptFormConfig', value: JSON.stringify(formConfig) }
+            ];
+
+            if (newPass) {
+                adminPassword = newPass;
+                updates.push({ key: 'AdminPassword', value: adminPassword });
+                localStorage.setItem('cab_adminPass', adminPassword);
+            }
 
             const loader = document.getElementById('saveSettingsLoader');
             if(loader) loader.style.display = 'block';
             
             try {
-                await sb.upsert('settings', [
-                    { key: 'ReceiptStaff', value: JSON.stringify(staff) },
-                    { key: 'ReceiptTeams', value: JSON.stringify(TEAMS) },
-                    { key: 'ReceiptFormConfig', value: JSON.stringify(formConfig) }
-                ], 'key');
-                showToast("Settings Saved", "success");
+                await sb.upsert('settings', updates, 'key');
+                if (newPass) document.getElementById('newAdminPass').value = ''; // clear field after saving
+                showToast("Settings Saved", false);
                 applyFormConfig(); 
-                renderDashboard();
+                renderDashboard(); // refresh UI elements
             } catch (e) {
-                console.error("Cloud save failed:", e);
-                showToast("Settings saved locally (Cloud unavailable)", "error");
+                showToast("Failed to save to cloud: " + e.message, true);
             } finally {
                 if(loader) loader.style.display = 'none';
             }
         }
 
-        function renderSettings() {
-            const list = document.getElementById('settings-staffList');
-            document.getElementById('staffCountBadge').textContent = staff.length;
-            
-            if (staff.length === 0) {
-                list.innerHTML = `<div class="text-zinc-500 text-sm italic py-4 col-span-full text-center border border-zinc-800 border-dashed rounded-xl">No staff members configured.</div>`;
-            } else {
-                list.innerHTML = staff.map((s, idx) => `
-                    <div class="flex flex-col bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 gap-1 hover:border-zinc-700 transition">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-sm text-white font-bold">${escapeHTML(s.name)}</span>
-                            <button class="text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 p-1.5 rounded transition" onclick="removeStaff(${idx})" title="Remove Staff">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                        <div class="text-[11px] text-zinc-400 mb-2">${escapeHTML(s.email)}</div>
-                        <div class="flex flex-wrap gap-1">
-                            ${s.teams.map(t => `<span class="text-[9px] text-purple-300 bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-500/20 uppercase font-bold tracking-wider">${escapeHTML(t)}</span>`).join('')}
-                        </div>
-                    </div>`).join('');
-            }
-                
-            // Render Teams
-            const teamList = document.getElementById('settings-teamList');
-            document.getElementById('teamCountBadge').textContent = TEAMS.length;
-            teamList.innerHTML = TEAMS.map((t, idx) => `
-                <div class="flex items-center justify-between bg-zinc-900/50 p-2.5 rounded-xl border border-zinc-800">
-                    <span class="text-sm text-zinc-300 font-medium px-2">${escapeHTML(t)}</span>
-                    <button class="text-rose-500 hover:bg-rose-500/10 p-1.5 rounded transition" onclick="removeTeam(${idx})"><i data-lucide="x" class="w-4 h-4"></i></button>
-                </div>
-            `).join('');
-
-            // Render Form Config
-            const configList = document.getElementById('settings-formConfigList');
-            const fields = [
-                { key: 'reqName', title: 'Name Field' },
-                { key: 'reqTeam', title: 'Team Field' },
-                { key: 'reqDate', title: 'Date Field' },
-                { key: 'reqAmount', title: 'Amount Field' },
-                { key: 'reqCard', title: 'Card Field' },
-                { key: 'reqReason', title: 'Reason / Event Field' },
-                { key: 'reqAttendees', title: 'Attendees Field' }
-            ];
-            
-            configList.innerHTML = fields.map(f => {
-                const conf = formConfig[f.key];
-                const placeholderInput = conf.placeholder !== undefined 
-                    ? `<input type="text" id="config_${f.key}_placeholder" class="control-item !p-2 !text-xs !bg-black border-zinc-700" value="${escapeHTML(conf.placeholder)}" placeholder="Placeholder Text" />` 
-                    : '';
-                
-                return `
-                <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800 flex flex-col gap-2">
-                    <span class="text-xs font-bold text-zinc-400 uppercase tracking-wider">${f.title}</span>
-                    <div class="grid grid-cols-1 ${placeholderInput ? 'sm:grid-cols-2' : ''} gap-2">
-                        <input type="text" id="config_${f.key}_label" class="control-item !p-2 !text-xs !bg-black border-zinc-700" value="${escapeHTML(conf.label)}" placeholder="Question Label" />
-                        ${placeholderInput}
-                    </div>
-                </div>
-                `;
-            }).join('');
-            
-            lucide.createIcons();
+        function addTeam() { 
+            const val = document.getElementById('newTeamInput').value.trim(); 
+            if(val && !TEAMS.includes(val)) { 
+                TEAMS.push(val); 
+                document.getElementById('newTeamInput').value = ""; 
+                renderSettingsPanel(); 
+            } 
         }
-
-        function addTeam() {
-            const input = document.getElementById('newTeamName');
-            const val = input.value.trim();
-            if(val && !TEAMS.includes(val)) {
-                TEAMS.push(val);
-                input.value = "";
-                renderSettings();
-                saveSettings(); // Auto-save
-            }
-        }
-        
-        function removeTeam(idx) {
-            TEAMS.splice(idx, 1);
-            renderSettings();
-            saveSettings(); // Auto-save
-        }
-
-        function resetFormConfig() {
-            formConfig = JSON.parse(JSON.stringify(defaultFormConfig));
-            renderSettings();
-            saveSettings();
+        function removeTeam(idx) { 
+            TEAMS.splice(idx, 1); 
+            renderSettingsPanel(); 
         }
 
         function addStaff() {
@@ -1019,29 +947,83 @@
             const teamsSelect = document.getElementById('newStaffTeams');
             const selectedTeams = Array.from(teamsSelect.selectedOptions).map(opt => opt.value);
             
-            if (!name || !email || selectedTeams.length === 0) {
-                return showToast("Name, Email, and at least 1 Team required", "error");
-            }
+            if (!name || !email || selectedTeams.length === 0) return showToast("Name, Email, and at least 1 Team required", true);
             
             staff.push({ id: Date.now(), name, email, teams: selectedTeams });
-            
-            document.getElementById('newStaffName').value = ""; 
-            document.getElementById('newStaffEmail').value = "";
+            document.getElementById('newStaffName').value = ""; document.getElementById('newStaffEmail').value = "";
             teamsSelect.selectedIndex = -1;
-            
-            renderSettings(); 
-            saveSettings(); // Auto-save
-            showToast("Staff Member Added", "success");
+            renderSettingsPanel();
+        }
+        function removeStaff(idx) { 
+            staff.splice(idx, 1); 
+            renderSettingsPanel(); 
         }
 
-        function removeStaff(idx) {
-            staff.splice(idx, 1);
-            renderSettings();
-            saveSettings();
-            showToast("Staff Member Removed");
+        function renderSettingsPanel() {
+            document.getElementById('teamCount').textContent = TEAMS.length;
+            document.getElementById('settings-teamList').innerHTML = TEAMS.map((t, idx) => `
+                <div class="flex justify-between items-center bg-zinc-900 p-2.5 rounded-lg border border-zinc-800">
+                    <span class="text-sm font-medium">${escapeHTML(t)}</span>
+                    <button class="text-rose-500 hover:text-rose-400" onclick="removeTeam(${idx})"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+            `).join('');
+
+            document.getElementById('staffCount').textContent = staff.length;
+            document.getElementById('settings-staffList').innerHTML = staff.map((s, idx) => `
+                <div class="bg-zinc-900 p-2.5 rounded-lg border border-zinc-800 flex flex-col gap-1 relative group">
+                    <button class="absolute top-2 right-2 text-rose-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity" onclick="removeStaff(${idx})"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    <span class="text-sm font-bold">${escapeHTML(s.name)}</span>
+                    <span class="text-xs text-zinc-400">${escapeHTML(s.email)}</span>
+                    <span class="text-[10px] text-purple-400 uppercase font-bold mt-1 tracking-wider">${s.teams.join(', ')}</span>
+                </div>
+            `).join('');
+
+            const staffTeamsSelect = document.getElementById('newStaffTeams');
+            staffTeamsSelect.innerHTML = TEAMS.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
+
+            const mappings = [
+                { id: 'reqName', title: 'Name Field' }, { id: 'reqTeam', title: 'Team Field' },
+                { id: 'reqDate', title: 'Date Field' }, { id: 'reqAmount', title: 'Amount Field' },
+                { id: 'reqCard', title: 'Card # Field' }, { id: 'reqReason', title: 'Reason Field' },
+                { id: 'reqAttendees', title: 'Attendees Field' }
+            ];
+
+            const cList = document.getElementById('formCustomizerList');
+            cList.innerHTML = mappings.map(m => {
+                const conf = formConfig[m.id];
+                return `
+                <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800 flex flex-col gap-2">
+                    <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">${m.title}</div>
+                    <input type="text" id="config_${m.id}_label" class="control-item !p-2 !text-sm" value="${escapeHTML(conf.label)}" title="Label" />
+                    ${m.id !== 'reqTeam' && m.id !== 'reqDate' ? `<input type="text" id="config_${m.id}_placeholder" class="control-item !p-2 !text-sm" value="${escapeHTML(conf.placeholder)}" title="Placeholder" />` : ''}
+                </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // --- UTILS ---
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.toString().replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+        }
+
+        function showToast(msg, isError = false) { 
+            const t = document.getElementById('toast'); 
+            t.textContent = msg; 
+            if(isError) {
+                t.classList.add('!border-rose-500/50');
+                t.classList.remove('!border-purple-500/50');
+            } else {
+                t.classList.remove('!border-rose-500/50');
+                t.classList.add('!border-purple-500/50');
+            }
+            t.style.display = 'block'; 
+            setTimeout(() => t.style.display = 'none', 3500); 
         }
 
         window.onload = init;
-    </script>
+</script>
 </body>
 </html>
