@@ -822,19 +822,19 @@
                 // 3. Insert to Supabase Database
                 await sb.insert('receipts', record);
                 
-                // 4. FIRE AND FORGET - Ping the GAS backend to do the heavy lifting
+                // 4. FIRE AND FORGET - Ping the GAS backend using sendBeacon (immune to CORS and tab closing)
                 const staffToNotify = staff.filter(s => s.teams.includes(team)).map(s => s.email);
                 
-                fetch(MASTER_WEBHOOK_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        receiptId: receiptId,
-                        record: record,
-                        supabaseUrls: supabaseUrls,
-                        supabasePaths: supabasePaths,
-                        staffEmails: staffToNotify
-                    })
-                }).catch(e => console.log("Webhook fired in background", e)); // We don't await this!
+                const payload = JSON.stringify({
+                    receiptId: receiptId,
+                    record: record,
+                    supabaseUrls: supabaseUrls,
+                    supabasePaths: supabasePaths,
+                    staffEmails: staffToNotify
+                });
+
+                // sendBeacon guarantees delivery in the background
+                navigator.sendBeacon(MASTER_WEBHOOK_URL, payload);
 
                 // 5. Update UI instantly
                 fireConfetti();
