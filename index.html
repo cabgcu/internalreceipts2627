@@ -263,18 +263,16 @@
 
             <!-- SUCCESS VIEW -->
             <div id="successView" class="view max-w-md w-full mx-auto">
-                <div class="glass-card primary-card rounded-3xl p-8 text-center relative overflow-hidden">
+                <div class="glass-card primary-card rounded-3xl p-8 text-center">
                     <div class="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 text-white shadow-[0_0_30px_rgba(168,85,247,0.5)]">
                         <i data-lucide="check" class="w-10 h-10"></i>
                     </div>
                     <h2 class="text-3xl font-bold mb-3 text-white">Submitted!</h2>
-                    <p class="text-zinc-400 mb-8 text-sm leading-relaxed">Your receipt has been logged. You may now close this tab or submit another.</p>
+                    <p class="text-zinc-400 mb-8 text-sm leading-relaxed">Your receipt has been logged. The assigned staff member has been notified.</p>
                     
-                    <!-- Background Sync Indicator -->
-                    <div id="syncIndicator" class="bg-zinc-900/80 border border-zinc-800 rounded-xl p-3 mb-8 flex items-center justify-center gap-3 transition-colors duration-500">
-                        <div class="loader !w-4 !h-4 !ml-0 !mr-0 border-purple-400" id="syncLoader" style="display:block; border-bottom-color: transparent;"></div>
-                        <i data-lucide="check-circle-2" id="syncCompleteIcon" class="w-5 h-5 text-emerald-400 hidden"></i>
-                        <span id="syncText" class="text-xs font-medium text-purple-300">Syncing files to Google Drive in background...</span>
+                    <div class="bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-3 mb-8 flex items-center justify-center gap-3">
+                        <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
+                        <span class="text-xs font-bold text-emerald-400">Safe to close tab! Processing in background.</span>
                     </div>
 
                     <button class="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3.5 rounded-xl transition-all" onclick="resetForm(); switchView('form')">
@@ -500,13 +498,10 @@
         // ==========================================
         const SUPABASE_URL = "https://nmmshjdknmuzpgpquwec.supabase.co";
         const SUPABASE_KEY = "sb_publishable_PCxlxywY7W6K3TmMrSnSsw_NPXKugoZ";
-        const SUPABASE_STORAGE_BUCKET = "cab-receipts"; // YOU MUST CREATE THIS PUBLIC BUCKET IN SUPABASE
+        const SUPABASE_STORAGE_BUCKET = "cab-receipts"; 
         
-        // Proxy to upload images directly to Google Drive
-        const DRIVE_PROXY_URL = "https://script.google.com/macros/s/AKfycbwz15h52GT4d2SV8S7QjYK7xUkUTL4zfjLwgAK9LQhS0yK79D0RnGMnq8Lnu-3WG6vg/exec";
-        
-        // Triggers the automated email to Staff
-        const EMAIL_GAS_URL = "https://script.google.com/macros/s/AKfycbxmdtIZ6i0Av0pDFdu0380YfClaY15V1eYmcFhWyiHl_qjUskC0D7Q4mpMToOy8DFVytA/exec";
+        // PASTE YOUR NEW SINGLE GOOGLE APPS SCRIPT URL HERE:
+        const MASTER_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuwuoFgiaLNZ-gIqRciytFQIfJ3UQrZLeWBRPf9ovSLM6UMz0PJWGTXlS8SPMwoNY0Uw/exec";
 
         // Supabase REST helper
         const sb = {
@@ -544,16 +539,6 @@
                 });
                 if (!res.ok) throw new Error(await res.text());
                 return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
-            },
-            async deleteStorage(bucket, path) {
-                const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    }
-                });
-                if (!res.ok) throw new Error(await res.text());
             }
         };
 
@@ -713,6 +698,7 @@
         function checkAttendees() {
             const val = document.getElementById('reqAttendees').value;
             const group = document.getElementById('attendeeNamesGroup');
+            // Show the names box if attendees is between 1 and 6
             if (val !== '' && parseInt(val) > 0 && parseInt(val) < 7) {
                 group.classList.remove('hidden');
             } else {
@@ -730,6 +716,7 @@
             return new Blob([u8arr], {type:mime});
         }
 
+        // --- SUBMISSION PROCESS ---
         function previewSubmission() {
             const name = document.getElementById('reqName').value.trim();
             const team = document.getElementById('reqTeam').value;
@@ -788,6 +775,8 @@
             const attendees = document.getElementById('reqAttendees').value;
             
             let parsedAttendees = parseInt(attendees) || 0;
+            
+            // Bundle attendee names into the reason if applicable
             if (attendees !== '' && parsedAttendees > 0 && parsedAttendees < 7) {
                 const names = document.getElementById('reqAttendeeNames').value.trim();
                 reason += `\n\nAttendee Names: ${names}`;
@@ -800,13 +789,12 @@
             try {
                 showToast("Uploading fast to temporary storage...", false);
                 
-                // 1. Instantly upload to Supabase Storage (extremely fast)
+                // 1. Instantly upload to Supabase Storage
                 const supabaseUrls = [];
                 const supabasePaths = [];
                 
                 for (const imgObj of currentUploadedImages) {
                     const blob = dataURLtoBlob(imgObj.data);
-                    // Generate a safe unique filename
                     const safeName = imgObj.name.replace(/[^a-zA-Z0-9.]/g, '');
                     const filePath = `${Date.now()}_${safeName}`;
                     
@@ -817,7 +805,7 @@
 
                 showToast("Saving record to database...", false);
 
-                // 2. Build Record (saving the temp Supabase URLs for now)
+                // 2. Build Record
                 const receiptId = Date.now().toString();
                 const record = {
                     id: receiptId,
@@ -831,27 +819,27 @@
                     photos_json: JSON.stringify(supabaseUrls)
                 };
 
-                // Insert to Supabase Database
+                // 3. Insert to Supabase Database
                 await sb.insert('receipts', record);
+                
+                // 4. FIRE AND FORGET - Ping the GAS backend to do the heavy lifting
+                const staffToNotify = staff.filter(s => s.teams.includes(team)).map(s => s.email);
+                
+                fetch(MASTER_WEBHOOK_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        receiptId: receiptId,
+                        record: record,
+                        supabaseUrls: supabaseUrls,
+                        supabasePaths: supabasePaths,
+                        staffEmails: staffToNotify
+                    })
+                }).catch(e => console.log("Webhook fired in background", e)); // We don't await this!
 
-                // 3. IMMEDIATELY update UI to show success so user doesn't wait
+                // 5. Update UI instantly
                 fireConfetti();
                 closePreviewModal();
                 switchView('success');
-                
-                // Setup Success UI for Sync Status
-                document.getElementById('syncLoader').style.display = 'block';
-                document.getElementById('syncCompleteIcon').classList.add('hidden');
-                document.getElementById('syncText').textContent = "Moving files to Drive... (Safe to close tab)";
-                document.getElementById('syncText').className = "text-xs font-medium text-purple-300";
-                document.getElementById('syncIndicator').className = "bg-zinc-900/80 border border-zinc-800 rounded-xl p-3 mb-8 flex items-center justify-center gap-3 transition-colors duration-500";
-
-                // 4. Kick off the background migration to Google Drive (NON-BLOCKING)
-                // We pass a copy of currentUploadedImages so we can clear the form safely
-                const cachedImagesForMigration = [...currentUploadedImages];
-                resetFormStateOnly(); // Clears form for next submission immediately
-                
-                migrateToDriveInBackground(receiptId, record, cachedImagesForMigration, supabasePaths);
 
             } catch (e) {
                 console.error("Submission error:", e);
@@ -859,88 +847,6 @@
             } finally {
                 btn.disabled = false; loader.style.display = 'none';
             }
-        }
-
-        async function migrateToDriveInBackground(receiptId, record, images, supabasePaths) {
-            isMigrating = true;
-            try {
-                // 1. Upload the base64 chunks to the Google Apps Script proxy
-                const driveUrls = [];
-                for (const imgObj of images) {
-                    const base64Data = imgObj.data.split(',')[1];
-                    const payload = {
-                        base64: base64Data,
-                        mimeType: imgObj.type || 'application/octet-stream',
-                        filename: imgObj.name
-                    };
-
-                    const response = await fetch(DRIVE_PROXY_URL, {
-                        method: 'POST',
-                        body: JSON.stringify(payload)
-                    });
-
-                    const result = await response.json();
-                    if (!result.success) throw new Error(result.error || "Proxy upload failed");
-                    driveUrls.push(result.url);
-                }
-
-                // 2. Update the Database with permanent Google Drive URLs
-                record.photos_json = JSON.stringify(driveUrls);
-                await sb.upsert('receipts', record, 'id');
-
-                // 3. Dispatch Notification Email via GAS
-                const staffToNotify = staff.filter(s => s.teams.includes(record.team)).map(s => s.email);
-                if (staffToNotify.length > 0) {
-                    await fetch(EMAIL_GAS_URL, {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            staffEmails: staffToNotify,
-                            name: record.name,
-                            team: record.team,
-                            date: record.date,
-                            amount: record.amount,
-                            card: record.card,
-                            reason: record.reason,
-                            attendees: record.attendees,
-                            photos: driveUrls
-                        })
-                    });
-                }
-
-                // 4. Delete the temporary files from Supabase Storage (saves space!)
-                for (const path of supabasePaths) {
-                    await sb.deleteStorage(SUPABASE_STORAGE_BUCKET, path);
-                }
-
-                // Update Sync Status in UI
-                document.getElementById('syncLoader').style.display = 'none';
-                document.getElementById('syncCompleteIcon').classList.remove('hidden');
-                document.getElementById('syncText').textContent = "Sync Complete! All files backed up.";
-                document.getElementById('syncText').className = "text-xs font-bold text-emerald-400";
-                document.getElementById('syncIndicator').classList.add('border-emerald-500/30', 'bg-emerald-900/10');
-
-            } catch(e) {
-                console.error("Background Migration Failed:", e);
-                document.getElementById('syncLoader').style.display = 'none';
-                document.getElementById('syncText').textContent = "Sync failed. Files remain in Supabase temp storage.";
-                document.getElementById('syncText').className = "text-xs font-bold text-rose-400";
-            } finally {
-                isMigrating = false;
-            }
-        }
-
-        function resetFormStateOnly() {
-            document.getElementById('reqName').value = '';
-            document.getElementById('reqTeam').value = '';
-            document.getElementById('reqDate').value = '';
-            document.getElementById('reqAmount').value = '';
-            document.getElementById('reqCard').value = '';
-            document.getElementById('reqReason').value = '';
-            document.getElementById('reqAttendees').value = '';
-            document.getElementById('reqAttendeeNames').value = '';
-            document.getElementById('attendeeNamesGroup').classList.add('hidden');
-            currentUploadedImages = [];
-            renderPreviews();
         }
 
         function resetForm() {
