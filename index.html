@@ -1,38 +1,43 @@
 <!DOCTYPE html>
-<html lang="en" style="color-scheme: dark;">
+<html lang="en" class="dark" style="color-scheme: dark;">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>CAB Receipt Submission</title>
+    <title>CAB Receipt Submission - Night Glass</title>
     
     <link rel="icon" href="data:," />
     
     <!-- Canvas Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
+    <!-- GSAP for Smooth Animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Google Fonts -->
+    <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: {
-                        zinc: {
-                            900: '#18181b',
-                            950: '#09090b',
+                        night: {
+                            950: '#020617',
+                            900: '#0f172a',
+                            800: '#1e293b'
                         }
                     }
                 }
@@ -42,240 +47,322 @@
 
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #09090b; }
-        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #71717a; }
-        .no-save-pass { -webkit-text-security: disc !important; text-security: disc !important; }
-        html { background-color: #09090b; }
 
-        .glass-card {
-            background: rgba(9, 9, 11, 0.65);
+        body {
+            font-family: "Inter", sans-serif;
+            background: #020617;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15,23,42,0.5); }
+        ::-webkit-scrollbar-thumb { background: rgba(167,139,250,0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(167,139,250,0.6); }
+
+        /* Security Input Masking */
+        .no-save-pass { -webkit-text-security: disc !important; text-security: disc !important; }
+
+        /* NIGHT GLASS IMAGE BACKGROUND */
+        .night-bg {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('https://i.imgur.com/J3ZEdiB.png');
+            background-size: cover;
+            background-position: center;
+            z-index: -2;
+            background-color: #020617;
+        }
+
+        /* Vignette effect */
+        .night-overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, transparent 0%, #020617 150%);
+            opacity: 0.9;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* NIGHT GLASS CARDS */
+        .night-glass-card {
+            background: rgba(15, 23, 42, 0.45);
             backdrop-filter: blur(30px);
             -webkit-backdrop-filter: blur(30px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-        }
-        
-        .primary-card {
-            border: 1px solid rgba(168, 85, 247, 0.4);
-            box-shadow: 0 0 20px rgba(168, 85, 247, 0.05);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            box-shadow: 0 50px 100px rgba(0, 0, 0, 0.65), 0 0 80px rgba(124, 58, 237, 0.25);
         }
 
-        .view { display: none; opacity: 0; transform: translateY(15px); transition: 0.4s ease; width: 100%; }
-        .view.active { display: block; opacity: 1; transform: translateY(0); }
+        .night-glass-card-subtle {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+        }
 
-        .control-item {
+        /* LOGO RADIAL GLOW & FLOAT EFFECT */
+        .logo-box {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logo-box::before {
+            content: "";
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.65), rgba(99, 102, 241, 0.45), rgba(37, 99, 235, 0.2), transparent 75%);
+            filter: blur(28px);
+            animation: logoGlowPulse 4s infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes logoGlowPulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.22); opacity: 1; }
+        }
+
+        /* NIGHT GLASS BUTTONS */
+        .night-btn-primary {
+            background: linear-gradient(135deg, #a855f7, #6366f1, #2563eb);
+            color: white;
+            box-shadow: 0 15px 35px rgba(99, 102, 241, 0.45);
+            transition: all 0.3s ease;
+        }
+
+        .night-btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 45px rgba(99, 102, 241, 0.65);
+        }
+
+        .night-btn-link {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .night-btn-link:hover:not(:disabled) {
+            background: rgba(30, 41, 59, 0.8);
+            border-color: rgba(168, 85, 247, 0.7);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(124, 58, 237, 0.35);
+        }
+
+        /* INPUT STYLES */
+        .control-input {
             width: 100%;
-            background: #18181b;
-            border: 1px solid #27272a;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(167, 139, 250, 0.45);
             color: #ffffff;
-            border-radius: 0.75rem;
-            padding: 0.75rem 1rem;
-            font-family: inherit;
-            font-size: 1rem;
+            border-radius: 1rem;
+            padding: 0.85rem 1.1rem;
+            margin-bottom: 0.85rem;
             outline: none;
-            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
-        }
-        @media (min-width: 640px) {
-            .control-item { padding: 1rem 1.25rem; }
-        }
-        @media (hover: hover) {
-            .control-item:hover {
-                border-color: rgba(168, 85, 247, 0.4);
-                transform: translateY(-2px);
-                box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
-            }
-        }
-        .control-item::placeholder { color: rgba(255, 255, 255, 0.5); }
-        .control-item:focus {
-            border-color: #a855f7;
-            background: #27272a;
-            box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
-        }
-        
-        select.control-item { 
-            appearance: none; 
-            -webkit-appearance: none; 
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); 
-            background-repeat: no-repeat; 
-            background-position: right 1rem center; 
-            background-size: 16px; 
-            padding-right: 2.5rem; 
+            transition: all 0.3s ease;
+            font-size: 0.925rem;
         }
 
-        /* Forces dropdown options to be dark on Windows instead of white */
-        select.control-item option { 
-            background: #18181b; 
-            color: white; 
+        .control-input::placeholder { color: rgba(255, 255, 255, 0.5); }
+
+        .control-input:focus {
+            border-color: #60a5fa;
+            background: rgba(15, 23, 42, 0.85);
+            box-shadow: 0 0 25px rgba(96, 165, 250, 0.4);
+            transform: translateY(-1px);
         }
         
-        select[multiple].control-item {
+        select.control-input {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a78bfa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+            padding-right: 2.5rem;
+        }
+
+        select.control-input option {
+            background-color: #0f172a;
+            color: #fff;
+        }
+        
+        select[multiple].control-input {
             background-image: none;
             padding-right: 1rem;
             min-height: 80px;
         }
-        select[multiple].control-item option {
+        select[multiple].control-input option {
             padding: 0.5rem;
             margin-bottom: 2px;
             border-radius: 0.25rem;
         }
-        select[multiple].control-item option:checked {
-            background: linear-gradient(to right, #2563eb, #9333ea) !important;
+        select[multiple].control-input option:checked {
+            background: linear-gradient(to right, #6366f1, #a855f7) !important;
             color: white;
         }
 
-        input[type="date"].control-item {
+        input[type="date"].control-input {
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
             -webkit-appearance: none;
             appearance: none;
+            color-scheme: dark;
         }
-        input[type="date"].control-item::-webkit-date-and-time-value { text-align: left; }
-        input[type="date"].control-item::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; margin-left: auto; }
+        input[type="date"].control-input::-webkit-date-and-time-value { text-align: left; }
+        input[type="date"].control-input::-webkit-calendar-picker-indicator { filter: invert(1) sepia(1) saturate(5) hue-rotate(240deg); cursor: pointer; margin-left: auto; }
 
-        .form-label { display: block; margin-bottom: 0.75rem; color: #ffffff; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.4; }
+        textarea.control-input { min-height: 100px; resize: vertical; }
+
+        /* Form Labels */
+        .form-label { display: block; margin-bottom: 0.75rem; color: rgba(216, 180, 254, 0.9); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.4; }
         .form-group { margin-bottom: 1.5rem; }
-
-        .loader { display: none; width: 18px; height: 18px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rotation 1s linear infinite; margin-left: 10px; }
-        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        #toast { position: fixed; bottom: max(30px, calc(env(safe-area-inset-bottom, 0px) + 15px)); left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; padding: 16px 24px; border-radius: 100px; z-index: 2000; display: none; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
-        
-        body {
-            background-color: #07060f;
-            background-image: url('https://i.imgur.com/4DfFmUh.png');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            background-repeat: no-repeat;
-        }
 
         /* Drag & Drop Upload Zone */
         .upload-zone {
-            border: 2px dashed rgba(168, 85, 247, 0.3);
-            background: rgba(24, 24, 27, 0.5);
+            border: 2px dashed rgba(167, 139, 250, 0.4);
+            background: rgba(15, 23, 42, 0.4);
             transition: all 0.3s ease;
         }
         .upload-zone.dragover {
-            border-color: #a855f7;
-            background: rgba(168, 85, 247, 0.1);
+            border-color: #60a5fa;
+            background: rgba(96, 165, 250, 0.15);
             transform: scale(1.02);
+            box-shadow: 0 0 25px rgba(96, 165, 250, 0.2);
         }
-        .preview-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 0.5rem;
-        }
+        .preview-image { width: 100%; height: 100%; object-fit: cover; border-radius: 0.5rem; }
         .file-icon {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #27272a;
-            border-radius: 0.5rem;
-            color: #a855f7;
+            width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+            background: rgba(15, 23, 42, 0.8); border-radius: 0.5rem; color: #a78bfa;
+        }
+
+        /* VIEW SWITCHING LOGIC */
+        .view { display: none; opacity: 0; transform: translateY(15px); transition: 0.4s ease; width: 100%; }
+        .view.active { display: block; opacity: 1; transform: translateY(0); }
+
+        /* LOADERS & TOASTS */
+        .loader { display: none; width: 18px; height: 18px; border: 2.5px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: smooth-spin 0.8s linear infinite; margin-left: 10px;}
+        @keyframes smooth-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        #toast { 
+            position: fixed; 
+            bottom: max(30px, calc(env(safe-area-inset-bottom, 0px) + 15px)); 
+            left: 50%; 
+            transform: translateX(-50%); 
+            width: 90%; max-width: 400px; 
+            padding: 16px 24px; 
+            border-radius: 100px; 
+            z-index: 2000; 
+            display: none; 
+            text-align: center; 
         }
     </style>
 </head>
-<body class="text-zinc-100 min-h-[100dvh] relative overflow-x-hidden selection:bg-purple-500/30 font-sans">
+<body class="text-white min-h-[100dvh] w-full relative overflow-x-hidden selection:bg-purple-500/30 font-sans flex flex-col items-center justify-start antialiased custom-scroll">
 
-    <!-- Dark Overlay -->
-    <div class="fixed inset-0 bg-zinc-950/70 z-[-1]"></div>
+    <!-- Fullscreen Background Image -->
+    <div class="night-bg"></div>
+    <div class="night-overlay"></div>
 
-    <main class="relative z-10 w-full max-w-7xl mx-auto px-3 py-4 sm:p-8 min-h-[100dvh] flex flex-col">
+    <main class="relative z-10 w-full max-w-7xl mx-auto px-3 py-4 sm:p-8 flex-1 flex flex-col items-center justify-center min-h-[100dvh]">
+
         <div class="flex-1 w-full flex flex-col items-center justify-center py-8 sm:py-10">
 
             <!-- SUBMITTER FORM VIEW -->
             <div id="formView" class="view active max-w-2xl w-full mx-auto">
-                <div class="glass-card primary-card rounded-3xl p-6 sm:p-8">
-                    <div class="text-center mb-8">
-                        <img src="https://i.imgur.com/p2qZOL5.png" alt="CAB Logo" class="h-16 w-auto mx-auto mb-4 object-contain" />
-                        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">CAB Receipt Submission</h2>
-                        <p class="text-zinc-400 text-sm mt-2">Log your CAB-related expenses below.</p>
+                <div class="night-glass-card rounded-[36px] p-6 sm:p-10 border-purple-400/40">
+                    <div class="text-center mb-10">
+                        <div class="logo-box mb-8">
+                            <img src="https://i.imgur.com/p2qZOL5.png" alt="CAB Logo" class="h-20 sm:h-24 w-auto mx-auto object-contain card-logo drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]" />
+                        </div>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-md mb-3">CAB Receipt Submission</h2>
+                        <p class="text-purple-200/80 text-sm leading-relaxed">Log your CAB-related expenses below.</p>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                         <div class="form-group">
                             <label for="reqName" id="lbl_reqName" class="form-label">First & Last Name *</label>
-                            <input type="text" id="reqName" class="control-item" placeholder="e.g. Jane Doe" />
+                            <input type="text" id="reqName" class="control-input" placeholder="e.g. Jane Doe" />
                         </div>
                         <div class="form-group">
                             <label for="reqTeam" id="lbl_reqTeam" class="form-label">CAB Team *</label>
-                            <select id="reqTeam" class="control-item"><option value="">Select Team...</option></select>
+                            <select id="reqTeam" class="control-input"><option value="">Select Team...</option></select>
                         </div>
                         <div class="form-group">
                             <label for="reqDate" id="lbl_reqDate" class="form-label">Date of Purchase *</label>
-                            <input type="date" id="reqDate" class="control-item" />
+                            <input type="date" id="reqDate" class="control-input" />
                         </div>
                         <div class="form-group">
                             <label for="reqAmount" id="lbl_reqAmount" class="form-label">Amount ($) *</label>
-                            <input type="number" id="reqAmount" class="control-item" step="0.01" min="0" placeholder="0.00" />
+                            <input type="number" id="reqAmount" class="control-input" step="0.01" min="0" placeholder="0.00" />
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="reqCard" id="lbl_reqCard" class="form-label">Last 4 #s of Card *</label>
-                        <input type="text" id="reqCard" class="control-item" placeholder="e.g. 1234" maxlength="4" />
+                        <input type="text" id="reqCard" class="control-input" placeholder="e.g. 1234" maxlength="4" />
                     </div>
                     
                     <div class="form-group">
                         <label for="reqReason" id="lbl_reqReason" class="form-label">Event Name and/or Reason for Expense *</label>
-                        <input type="text" id="reqReason" class="control-item" placeholder="e.g. CAB Supplies for GGT 2026" />
+                        <input type="text" id="reqReason" class="control-input" placeholder="e.g. CAB Supplies for GGT 2026" />
                     </div>
 
                     <div class="form-group">
                         <label for="reqAttendees" id="lbl_reqAttendees" class="form-label">Estimated Attendees</label>
-                        <input type="number" id="reqAttendees" class="control-item" placeholder="Leave blank if N/A" oninput="checkAttendees()" />
+                        <input type="number" id="reqAttendees" class="control-input" placeholder="Leave blank if N/A" oninput="checkAttendees()" />
                     </div>
 
                     <div class="form-group hidden" id="attendeeNamesGroup">
-                        <label for="reqAttendeeNames" class="form-label text-purple-400">Attendee Names *</label>
-                        <textarea id="reqAttendeeNames" class="control-item !min-h-[80px] border-purple-500/50" placeholder="Please list the names of everyone present..."></textarea>
+                        <label for="reqAttendeeNames" class="form-label text-purple-300">Attendee Names *</label>
+                        <textarea id="reqAttendeeNames" class="control-input !min-h-[80px]" placeholder="Please list the names of everyone present..."></textarea>
                     </div>
 
                     <!-- File Upload Section -->
-                    <div class="form-group">
+                    <div class="form-group mb-8">
                         <label class="form-label">Attached Files / Receipts *</label>
-                        <div id="dragDropZone" class="upload-zone rounded-xl p-8 text-center cursor-pointer flex flex-col items-center justify-center min-h-[160px]" onclick="document.getElementById('fileInput').click()">
-                            <i data-lucide="upload-cloud" class="w-10 h-10 text-purple-400 mb-3"></i>
-                            <div class="text-white font-bold text-sm mb-1">Browse Files or Drag & Drop</div>
-                            <div class="text-zinc-500 text-xs">Images (JPG/PNG) & Documents (PDF) accepted</div>
+                        <div id="dragDropZone" class="upload-zone rounded-[24px] p-8 text-center cursor-pointer flex flex-col items-center justify-center min-h-[160px] shadow-inner" onclick="document.getElementById('fileInput').click()">
+                            <i data-lucide="upload-cloud" class="w-10 h-10 text-purple-400 mb-3 drop-shadow-md"></i>
+                            <div class="text-white font-bold text-sm mb-1 tracking-wide">Browse Files or Drag & Drop</div>
+                            <div class="text-purple-200/60 text-xs">Images (JPG/PNG) & Documents (PDF) accepted</div>
                             <input type="file" id="fileInput" class="hidden" multiple accept="image/*,.pdf,.doc,.docx" onchange="handleFiles(this.files)" />
                         </div>
                         
                         <!-- Uploaded Preview Area -->
-                        <div id="previewArea" class="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-4 hidden"></div>
+                        <div id="previewArea" class="grid grid-cols-3 sm:grid-cols-4 gap-4 mt-4 hidden"></div>
                     </div>
 
-                    <button id="submitBtn" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3.5 rounded-xl flex justify-center items-center gap-2 transition-all duration-300 shadow-[0_0_20px_rgba(168,85,247,0.3)] mt-8" onclick="previewSubmission()">
+                    <button id="submitBtn" class="w-full night-btn-primary font-bold py-4 rounded-2xl flex justify-center items-center gap-2 text-base tracking-wide uppercase shadow-[0_0_20px_rgba(168,85,247,0.3)] mt-8" onclick="previewSubmission()">
                         <span>Review & Submit</span>
                     </button>
                     
-                    <div class="mt-6 pt-4 border-t border-zinc-800 flex flex-col items-center gap-1">
-                        <button class="opacity-50 hover:opacity-100 transition-opacity uppercase tracking-widest bg-transparent border-none text-[10px] cursor-pointer text-zinc-500 p-1" onclick="showGate()">Admin Access</button>
+                    <div class="mt-8 pt-6 border-t border-purple-500/20 flex flex-col items-center gap-2">
+                        <span class="text-purple-300/50 text-[11px] tracking-wide">© <span id="year"></span> Canyon Activities Board</span>
+                        <button class="opacity-60 hover:opacity-100 transition-all uppercase tracking-widest bg-transparent border-none text-[10px] cursor-pointer text-purple-400 hover:text-purple-300 p-1" onclick="showGate()">Admin Access</button>
                     </div>
                 </div>
             </div>
 
             <!-- SUCCESS VIEW -->
             <div id="successView" class="view max-w-md w-full mx-auto">
-                <div class="glass-card primary-card rounded-3xl p-8 text-center">
-                    <div class="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 text-white shadow-[0_0_30px_rgba(168,85,247,0.5)]">
-                        <i data-lucide="check" class="w-10 h-10"></i>
+                <div class="night-glass-card rounded-[36px] p-10 text-center border-purple-400/40">
+                    <div class="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 bg-gradient-to-br from-purple-500 to-blue-600 border border-purple-400/50 shadow-[0_0_40px_rgba(168,85,247,0.5)]">
+                        <i data-lucide="check" class="w-12 h-12 text-white"></i>
                     </div>
-                    <h2 class="text-3xl font-bold mb-3 text-white">Submitted!</h2>
-                    <p class="text-zinc-400 mb-6 text-sm leading-relaxed">Your receipt has been successfully logged.</p>
+                    <h2 class="text-3xl font-extrabold mb-3 text-white tracking-tight">Submitted!</h2>
+                    <p class="text-purple-200/80 mb-6 text-sm leading-relaxed">Your receipt has been successfully logged.</p>
                     
-                    <div class="bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-4 mb-8 flex flex-col items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                    <div class="night-glass-card-subtle !bg-emerald-950/40 !border-emerald-500/40 rounded-[24px] p-5 mb-8 flex flex-col items-center justify-center gap-2 shadow-lg">
                         <i data-lucide="check-circle-2" class="w-6 h-6 text-emerald-400 mb-1"></i>
-                        <span class="text-sm font-bold text-emerald-400">It is now safe to close this tab.</span>
+                        <span class="text-sm font-bold text-emerald-400 tracking-wide uppercase">It is safe to close this tab.</span>
                     </div>
 
-                    <button class="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3.5 rounded-xl transition-all" onclick="resetForm(); switchView('form')">
+                    <button class="w-full night-btn-link text-white font-bold py-4 rounded-2xl transition-all shadow-md tracking-wide" onclick="resetForm(); switchView('form')">
                         Submit Another
                     </button>
                 </div>
@@ -283,85 +370,91 @@
 
             <!-- ADMIN DASHBOARD -->
             <div id="dashboardView" class="view max-w-7xl w-full mx-auto">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 sm:mb-8 glass-card p-4 sm:p-5 rounded-2xl border-white/5">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 night-glass-card p-5 sm:p-6 rounded-[28px] border-purple-400/40 shadow-xl">
                     <div>
-                        <h2 class="text-xl font-bold text-white mb-1">Receipt Dashboard</h2>
-                        <p class="text-zinc-400 text-sm">Reviewing internal team expenses.</p>
+                        <h2 class="text-2xl font-extrabold text-white tracking-tight mb-1">Receipt Dashboard</h2>
+                        <p class="text-purple-200/60 text-xs font-medium tracking-wide uppercase">Reviewing internal team expenses.</p>
                     </div>
-                    <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                        <button onclick="switchView('settings')" class="flex-1 md:flex-none justify-center bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white py-2.5 px-4 rounded-xl text-sm transition-all flex items-center gap-2 font-medium">
-                            <i data-lucide="settings" class="w-4 h-4"></i> System Settings
+                    <div class="flex flex-wrap gap-3 w-full md:w-auto">
+                        <button onclick="switchView('settings')" class="flex-1 md:flex-none justify-center night-btn-link text-white py-3 px-6 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+                            <i data-lucide="settings" class="w-4 h-4 text-purple-400"></i> System Settings
                         </button>
-                        <button onclick="exitAdmin()" class="w-full md:w-auto justify-center bg-gradient-to-r from-blue-600 to-purple-600 border border-purple-500/50 text-white py-2.5 px-6 rounded-xl text-sm font-medium transition-all flex items-center gap-2">
+                        <button onclick="exitAdmin()" class="w-full md:w-auto justify-center night-btn-primary py-3 px-8 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
                             Exit Admin
                         </button>
                     </div>
                 </div>
                 <!-- Grids for Team Breakdowns -->
-                <div id="admin-dashboardGrids" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div id="admin-dashboardGrids" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                     <!-- Injected by JS -->
                 </div>
             </div>
 
             <!-- ADMIN SETTINGS -->
             <div id="settingsView" class="view max-w-5xl w-full mx-auto">
-                <div class="glass-card rounded-3xl p-6 sm:p-10">
+                <div class="night-glass-card rounded-[36px] p-6 sm:p-10 border-purple-400/40 mb-10">
                     
-                    <div class="flex justify-between items-center border-b border-zinc-800 pb-6 mb-6">
-                        <h2 class="text-2xl font-bold text-white">System Settings</h2>
-                        <div class="flex gap-2">
-                            <button class="justify-center bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500/50 text-emerald-400 py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 font-medium" onclick="saveSettings()">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-purple-500/20 pb-6">
+                        <h2 class="text-2xl font-extrabold text-white tracking-tight flex items-center gap-3">
+                            <i data-lucide="sliders" class="w-6 h-6 text-purple-400"></i> System Settings
+                        </h2>
+                        <div class="flex gap-3">
+                            <button class="justify-center night-btn-primary py-3 px-6 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg" onclick="saveSettings()">
                                 <i data-lucide="save" class="w-4 h-4"></i> Save Settings <div class="loader" id="saveSettingsLoader"></div>
                             </button>
-                            <button class="justify-center bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 font-medium" onclick="switchView('dashboard')">
-                                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+                            <button class="justify-center night-btn-link text-white py-3 px-6 rounded-xl text-xs font-bold flex items-center gap-2" onclick="switchView('dashboard')">
+                                <i data-lucide="arrow-left" class="w-4 h-4 text-purple-400"></i> Back
                             </button>
                         </div>
                     </div>
 
                     <!-- Security Config -->
-                    <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5 mb-6">
-                        <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4">Security & Access</div>
+                    <div class="night-glass-card-subtle p-5 rounded-[24px] border-purple-400/30 mb-8 shadow-inner">
+                        <div class="text-purple-300 text-xs font-bold tracking-wider uppercase mb-5 flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4"></i> Security & Access</div>
                         <div class="flex gap-3 items-center">
-                            <input type="password" id="newAdminPass" class="control-item !p-3 !text-sm flex-1 no-save-pass" placeholder="Change Admin Password..." autocomplete="new-password" spellcheck="false" />
+                            <input type="password" id="newAdminPass" class="control-input !mb-0 flex-1 no-save-pass" placeholder="Change Admin Password..." autocomplete="new-password" spellcheck="false" />
                         </div>
-                        <p class="text-[10px] text-zinc-500 mt-2">Leave blank to keep the current password. Changes apply immediately upon saving.</p>
+                        <p class="text-[10px] text-purple-200/60 mt-3 font-medium">Leave blank to keep the current password. Changes apply immediately upon saving.</p>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                         <!-- Teams Config -->
-                        <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5">
-                            <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4 flex justify-between">
-                                <span>Dropdown Teams</span> <span id="teamCount">0</span>
+                        <div class="night-glass-card-subtle p-5 rounded-[24px] border-purple-400/30 shadow-inner flex flex-col">
+                            <div class="text-purple-300 text-xs font-bold tracking-wider uppercase mb-5 flex justify-between items-center">
+                                <span class="flex items-center gap-2"><i data-lucide="users" class="w-4 h-4"></i> Dropdown Teams</span>
+                                <span class="text-purple-200 bg-slate-900/50 px-2 py-0.5 rounded border border-purple-500/20" id="teamCount">0</span>
                             </div>
-                            <div class="flex gap-2 mb-4">
-                                <input type="text" id="newTeamInput" class="control-item !p-2 flex-1" placeholder="Add new team..." />
-                                <button class="bg-zinc-800 text-white px-4 rounded-xl" onclick="addTeam()">Add</button>
+                            <div class="flex gap-2 mb-4 bg-slate-900/50 p-2 rounded-2xl border border-purple-400/20">
+                                <input type="text" id="newTeamInput" class="control-input !mb-0 flex-1 border-none !bg-transparent shadow-none text-sm" placeholder="Add new team..." />
+                                <button class="night-btn-link text-white px-5 rounded-xl text-xs font-bold transition-all shrink-0" onclick="addTeam()">Add</button>
                             </div>
-                            <div id="settings-teamList" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1"></div>
+                            <div id="settings-teamList" class="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-2 custom-scroll flex-1"></div>
                         </div>
 
                         <!-- Staff Config -->
-                        <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5">
-                            <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4 flex justify-between">
-                                <span>Staff Alert Routing</span> <span id="staffCount">0</span>
+                        <div class="night-glass-card-subtle p-5 rounded-[24px] border-purple-400/30 shadow-inner flex flex-col">
+                            <div class="text-purple-300 text-xs font-bold tracking-wider uppercase mb-5 flex justify-between items-center">
+                                <span class="flex items-center gap-2"><i data-lucide="mail-warning" class="w-4 h-4"></i> Staff Alert Routing</span>
+                                <span class="text-purple-200 bg-slate-900/50 px-2 py-0.5 rounded border border-purple-500/20" id="staffCount">0</span>
                             </div>
-                            <div class="flex flex-col gap-2 mb-4">
-                                <input type="text" id="newStaffName" class="control-item !p-2" placeholder="Staff Name" />
-                                <input type="email" id="newStaffEmail" class="control-item !p-2" placeholder="Staff Email" />
-                                <div class="flex gap-2 items-start">
-                                    <select id="newStaffTeams" class="control-item !p-2" multiple size="3"></select>
-                                    <button class="bg-zinc-800 text-white px-4 py-2 h-full rounded-xl" onclick="addStaff()">Add</button>
+                            <div class="flex flex-col gap-3 mb-4 bg-slate-900/50 p-3 rounded-2xl border border-purple-400/20">
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                    <input type="text" id="newStaffName" class="control-input !mb-0 flex-1 text-sm" placeholder="Staff Name" />
+                                    <input type="email" id="newStaffEmail" class="control-input !mb-0 flex-1 text-sm" placeholder="Staff Email" />
                                 </div>
-                                <p class="text-[10px] text-zinc-500">Hold Ctrl/Cmd to assign multiple teams.</p>
+                                <div class="flex gap-3 items-start">
+                                    <select id="newStaffTeams" class="control-input !mb-0 flex-1 text-sm custom-scroll" multiple size="3" title="Hold Ctrl/Cmd to select multiple teams"></select>
+                                    <button class="night-btn-link text-white px-5 py-2 h-[80px] rounded-xl text-xs font-bold transition-all shrink-0" onclick="addStaff()">Add</button>
+                                </div>
+                                <p class="text-[9px] text-purple-300/70 font-bold uppercase tracking-widest pl-1">Hold Ctrl/Cmd to assign multiple teams.</p>
                             </div>
-                            <div id="settings-staffList" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1"></div>
+                            <div id="settings-staffList" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scroll flex-1"></div>
                         </div>
                     </div>
 
                     <!-- Form Customizer -->
-                    <div class="bg-zinc-900/30 p-5 rounded-2xl border border-white/5">
-                        <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-4">Customize Form Questions</div>
+                    <div class="night-glass-card-subtle p-5 rounded-[24px] border-purple-400/30 shadow-inner">
+                        <div class="text-purple-300 text-xs font-bold tracking-wider uppercase mb-5 flex items-center gap-2"><i data-lucide="form-input" class="w-4 h-4"></i> Customize Form Questions</div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="formCustomizerList">
                             <!-- Injected by JS -->
                         </div>
@@ -374,17 +467,19 @@
 
     <!-- Admin Login Modal -->
     <div id="gateModal" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4">
-        <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="hideGate()"></div>
-        <div class="relative w-full max-w-sm glass-card rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl border-purple-500/30">
-            <div class="w-16 h-16 bg-zinc-900 rounded-2xl p-3 mb-4 flex items-center justify-center border border-zinc-800">
-                <i data-lucide="lock" class="w-8 h-8 text-zinc-400"></i>
+        <div id="gateBackdrop" class="absolute inset-0 bg-black/75 backdrop-blur-md" onclick="hideGate()"></div>
+        <div id="gateCard" class="relative w-full max-w-sm night-glass-card rounded-[32px] p-8 flex flex-col items-center text-center shadow-2xl border-purple-400/40 z-10 transition-all duration-300">
+            <div class="logo-box mb-5">
+                <div class="w-16 h-16 rounded-2xl bg-slate-900/50 border border-purple-400/30 flex items-center justify-center relative z-10 shadow-lg">
+                    <i data-lucide="lock" class="w-7 h-7 text-purple-300"></i>
+                </div>
             </div>
-            <h3 class="text-2xl font-bold mb-1 text-white">Admin Login</h3>
-            <p class="text-zinc-400 text-sm mb-6">Enter password to access submissions.</p>
+            <h3 class="text-2xl font-bold mb-1 text-white tracking-tight">Admin Access</h3>
+            <p class="text-purple-200/70 text-xs mb-6">Enter password to access submissions.</p>
             
-            <input type="password" id="adminPass" class="control-item text-center mb-6 no-save-pass" placeholder="Password" onkeyup="if(event.key==='Enter') verifyAdmin()"/>
+            <input type="password" id="adminPass" class="control-input text-center mb-6 no-save-pass" placeholder="Password" autocomplete="off" spellcheck="false" onkeyup="if(event.key==='Enter') verifyAdmin()"/>
             
-            <button class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2" id="gateBtn" onclick="verifyAdmin()">
+            <button class="w-full night-btn-primary font-bold py-3.5 rounded-2xl flex justify-center items-center gap-2 text-sm shadow-lg" id="gateBtn" onclick="verifyAdmin()">
                 <span>Authorize</span> <div class="loader" id="gateLoader"></div>
             </button>
         </div>
@@ -392,82 +487,79 @@
 
     <!-- Receipt Detail Modal -->
     <div id="receiptModal" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4">
-        <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="closeReceiptModal()"></div>
-        <div class="relative w-full max-w-2xl glass-card rounded-3xl p-6 sm:p-8 flex flex-col shadow-2xl border-purple-500/30 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-start border-b border-zinc-800 pb-4 mb-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeReceiptModal()"></div>
+        <div class="relative w-full max-w-2xl night-glass-card rounded-[36px] p-6 sm:p-8 flex flex-col shadow-2xl border-purple-400/50 max-h-[90vh] overflow-y-auto z-10 custom-scroll">
+            <div class="flex justify-between items-start border-b border-purple-500/20 pb-5 mb-5">
                 <div>
-                    <h3 class="text-2xl font-bold text-white" id="modalName">Name</h3>
-                    <p class="text-purple-400 text-sm font-medium" id="modalTeam">Team</p>
+                    <h3 class="text-2xl font-extrabold text-white tracking-tight" id="modalName">Name</h3>
+                    <p class="text-purple-300 text-sm font-semibold mt-1 bg-slate-900/50 px-2 py-0.5 rounded inline-block border border-purple-500/20" id="modalTeam">Team</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button id="deleteReceiptBtn" class="text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/80 p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 border border-rose-500/20" title="Delete Receipt">
-                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    <button id="deleteReceiptBtn" class="text-rose-400 hover:text-white bg-slate-900/50 hover:bg-rose-500/80 p-2.5 rounded-xl transition flex items-center justify-center gap-1.5 border border-rose-500/20 shadow-md" title="Delete Receipt">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
-                    <button class="text-zinc-400 hover:text-white bg-zinc-800 p-2.5 rounded-xl" onclick="closeReceiptModal()">
-                        <i data-lucide="x" class="w-5 h-5"></i>
+                    <button class="text-purple-200 hover:text-white bg-slate-900/50 hover:bg-slate-800 border border-purple-400/30 p-2.5 rounded-xl transition shadow-md" onclick="closeReceiptModal()">
+                        <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
             </div>
             
             <div class="grid grid-cols-2 gap-4 mb-6">
-                <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
-                    <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Date</div>
-                    <div class="text-white text-sm" id="modalDate"></div>
+                <div class="night-glass-card-subtle p-4 rounded-[20px] border-purple-400/30 shadow-inner">
+                    <div class="text-[10px] text-purple-200/80 uppercase font-bold tracking-widest mb-1">Date</div>
+                    <div class="text-white text-base font-semibold" id="modalDate"></div>
                 </div>
-                <div class="bg-emerald-900/20 p-3 rounded-xl border border-emerald-500/20">
-                    <div class="text-[10px] text-emerald-500 uppercase font-bold tracking-wider mb-1">Amount</div>
-                    <div class="text-emerald-400 text-xl font-bold" id="modalAmount"></div>
+                <div class="night-glass-card-subtle !bg-emerald-950/40 p-4 rounded-[20px] border-emerald-500/40 shadow-inner">
+                    <div class="text-[10px] text-emerald-400/80 uppercase font-bold tracking-widest mb-1">Amount</div>
+                    <div class="text-emerald-400 text-2xl font-black drop-shadow-sm" id="modalAmount"></div>
                 </div>
-                <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
-                    <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Card (Last 4)</div>
-                    <div class="text-white text-sm" id="modalCard"></div>
+                <div class="night-glass-card-subtle p-4 rounded-[20px] border-purple-400/30 shadow-inner">
+                    <div class="text-[10px] text-purple-200/80 uppercase font-bold tracking-widest mb-1">Card (Last 4)</div>
+                    <div class="text-white text-base font-semibold" id="modalCard"></div>
                 </div>
-                <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
-                    <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Attendees</div>
-                    <div class="text-white text-sm" id="modalAttendees"></div>
+                <div class="night-glass-card-subtle p-4 rounded-[20px] border-purple-400/30 shadow-inner">
+                    <div class="text-[10px] text-purple-200/80 uppercase font-bold tracking-widest mb-1">Attendees</div>
+                    <div class="text-white text-base font-semibold" id="modalAttendees"></div>
                 </div>
-                <div class="col-span-2 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
-                    <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-1">Reason / Event</div>
-                    <div class="text-white text-sm whitespace-pre-wrap" id="modalReason"></div>
+                <div class="col-span-2 night-glass-card-subtle p-5 rounded-[20px] border-purple-400/30 shadow-inner">
+                    <div class="text-[10px] text-purple-200/80 uppercase font-bold tracking-widest mb-2">Reason / Event</div>
+                    <div class="text-white text-sm whitespace-pre-wrap leading-relaxed" id="modalReason"></div>
                 </div>
             </div>
 
-            <div class="text-purple-400 text-xs font-bold tracking-wider uppercase mb-3">Attached Files</div>
-            <div id="modalPhotos" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+            <div class="text-purple-300 text-xs font-bold tracking-wider uppercase mb-3">Attached Files</div>
+            <div id="modalPhotos" class="grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="glass-card !bg-zinc-900 !text-white font-bold shadow-xl border !border-purple-500/50">Update Successful</div>
-
     <!-- Preview Modal -->
     <div id="previewModal" class="fixed inset-0 z-[2000] hidden items-center justify-center p-4">
-        <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="closePreviewModal()"></div>
-        <div class="relative w-full max-w-md glass-card rounded-3xl p-6 sm:p-8 flex flex-col shadow-2xl border-blue-500/30 max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center gap-3 mb-4 border-b border-zinc-800 pb-4">
-                <div class="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400 shrink-0">
-                    <i data-lucide="eye" class="w-5 h-5"></i>
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closePreviewModal()"></div>
+        <div class="relative w-full max-w-md night-glass-card rounded-[36px] p-6 sm:p-8 flex flex-col shadow-2xl border-blue-500/40 max-h-[90vh] overflow-y-auto z-10 custom-scroll">
+            <div class="flex items-center gap-4 mb-6 border-b border-purple-500/20 pb-5">
+                <div class="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 border border-blue-500/30 shadow-inner shrink-0">
+                    <i data-lucide="eye" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <h3 class="text-xl font-bold text-white">Review Details</h3>
-                    <p class="text-zinc-400 text-xs">Please verify before submitting.</p>
+                    <h3 class="text-2xl font-extrabold text-white tracking-tight">Review Details</h3>
+                    <p class="text-purple-200/70 text-xs font-medium mt-0.5">Please verify before submitting.</p>
                 </div>
             </div>
             
-            <div class="flex flex-col gap-3 mb-6 text-sm">
-                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Name</span><span class="text-white font-medium text-right" id="prevName"></span></div>
-                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Team</span><span class="text-purple-400 font-medium text-right" id="prevTeam"></span></div>
-                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Date</span><span class="text-white font-medium text-right" id="prevDate"></span></div>
-                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Amount</span><span class="text-emerald-400 font-bold text-right" id="prevAmount"></span></div>
-                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Card</span><span class="text-white font-medium text-right" id="prevCard"></span></div>
-                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Attendees</span><span class="text-white font-medium text-right" id="prevAttendees"></span></div>
-                <div class="flex justify-between border-b border-zinc-800/50 pb-2"><span class="text-zinc-500">Files Attached</span><span class="text-white font-medium text-right" id="prevFiles"></span></div>
-                <div class="flex flex-col gap-1 pt-1"><span class="text-zinc-500">Reason / Event</span><span class="text-white font-medium bg-zinc-900/50 p-2 rounded-lg border border-zinc-800" id="prevReason"></span></div>
+            <div class="flex flex-col gap-3 mb-8 text-sm bg-slate-900/40 p-5 rounded-[24px] border border-purple-400/20 shadow-inner">
+                <div class="flex justify-between border-b border-purple-500/20 pb-3"><span class="text-purple-200/70 font-semibold text-xs uppercase tracking-wider">Name</span><span class="text-white font-bold text-right" id="prevName"></span></div>
+                <div class="flex justify-between border-b border-purple-500/20 pb-3 pt-1"><span class="text-purple-200/70 font-semibold text-xs uppercase tracking-wider">Team</span><span class="text-purple-300 font-bold text-right" id="prevTeam"></span></div>
+                <div class="flex justify-between border-b border-purple-500/20 pb-3 pt-1"><span class="text-purple-200/70 font-semibold text-xs uppercase tracking-wider">Date</span><span class="text-white font-bold text-right" id="prevDate"></span></div>
+                <div class="flex justify-between border-b border-purple-500/20 pb-3 pt-1"><span class="text-purple-200/70 font-semibold text-xs uppercase tracking-wider">Amount</span><span class="text-emerald-400 font-black text-lg text-right drop-shadow-sm" id="prevAmount"></span></div>
+                <div class="flex justify-between border-b border-purple-500/20 pb-3 pt-1"><span class="text-purple-200/70 font-semibold text-xs uppercase tracking-wider">Card</span><span class="text-white font-bold text-right" id="prevCard"></span></div>
+                <div class="flex justify-between border-b border-purple-500/20 pb-3 pt-1"><span class="text-purple-200/70 font-semibold text-xs uppercase tracking-wider">Attendees</span><span class="text-white font-bold text-right" id="prevAttendees"></span></div>
+                <div class="flex justify-between border-b border-purple-500/20 pb-3 pt-1"><span class="text-purple-200/70 font-semibold text-xs uppercase tracking-wider">Files</span><span class="text-white font-bold text-right bg-slate-800 px-2 py-0.5 rounded border border-purple-400/30" id="prevFiles"></span></div>
+                <div class="flex flex-col gap-2 pt-1"><span class="text-purple-200/70 font-semibold text-xs uppercase tracking-wider">Reason / Event</span><span class="text-white font-medium bg-slate-900/60 p-3 rounded-xl border border-purple-400/20 leading-relaxed text-xs" id="prevReason"></span></div>
             </div>
 
-            <div class="flex gap-3 mt-2">
-                <button class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3.5 rounded-xl transition" onclick="closePreviewModal()">Edit Info</button>
-                <button class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 text-white font-bold py-3.5 rounded-xl transition flex justify-center items-center gap-2" id="confirmSubmitBtn" onclick="processSubmission()">
+            <div class="flex gap-3">
+                <button class="flex-1 night-btn-link text-white font-bold py-3.5 rounded-2xl transition tracking-wide text-sm" onclick="closePreviewModal()">Edit Info</button>
+                <button class="flex-1 night-btn-primary text-white font-bold py-3.5 rounded-2xl transition flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(37,99,235,0.4)] tracking-wide text-sm" id="confirmSubmitBtn" onclick="processSubmission()">
                     <span>Confirm & Submit</span> <div class="loader !w-4 !h-4 !ml-0 !mr-0 border-white" id="submitModalLoader" style="display:none; border-bottom-color: transparent;"></div>
                 </button>
             </div>
@@ -476,20 +568,25 @@
 
     <!-- Custom Confirm Modal -->
     <div id="confirmModal" class="fixed inset-0 z-[2000] hidden items-center justify-center p-4">
-        <div class="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" onclick="closeConfirmModal()"></div>
-        <div class="relative w-full max-w-sm glass-card rounded-3xl p-6 flex flex-col text-center shadow-2xl border-rose-500/30">
-            <div class="w-12 h-12 bg-rose-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-rose-400">
-                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeConfirmModal()"></div>
+        <div class="relative w-full max-w-sm night-glass-card rounded-[32px] p-8 flex flex-col text-center shadow-2xl border-rose-500/40 z-10">
+            <div class="w-14 h-14 bg-rose-500/20 rounded-full flex items-center justify-center mx-auto mb-5 text-rose-400 border border-rose-500/30">
+                <i data-lucide="alert-triangle" class="w-7 h-7"></i>
             </div>
-            <h3 class="text-xl font-bold mb-2 text-white" id="confirmModalTitle">Are you sure?</h3>
-            <p class="text-zinc-400 text-sm mb-6" id="confirmModalMsg">This action cannot be undone.</p>
+            <h3 class="text-2xl font-bold mb-2 text-white tracking-tight" id="confirmModalTitle">Are you sure?</h3>
+            <p class="text-purple-200/70 text-sm mb-8 leading-relaxed" id="confirmModalMsg">This action cannot be undone.</p>
             <div class="flex gap-3">
-                <button class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 rounded-xl transition" onclick="closeConfirmModal()">Cancel</button>
-                <button class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-xl transition flex justify-center items-center gap-2" id="confirmModalActionBtn">
+                <button class="flex-1 night-btn-link text-white font-bold py-3.5 rounded-xl transition border-purple-400/30" onclick="closeConfirmModal()">Cancel</button>
+                <button class="flex-1 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold py-3.5 rounded-xl transition shadow-[0_0_15px_rgba(225,29,72,0.4)] flex justify-center items-center gap-2" id="confirmModalActionBtn">
                     <span>Delete</span> <div class="loader !w-4 !h-4 !ml-0 !mr-0 border-white" id="confirmLoader" style="display:none; border-bottom-color: transparent;"></div>
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="night-glass-card-subtle !bg-slate-900/90 !text-white font-bold shadow-2xl border !border-purple-500/50 text-sm tracking-wide">
+        Update Successful
     </div>
 
 <script>
@@ -562,7 +659,30 @@
 
         // --- INITIALIZATION ---
         async function init() {
+            document.getElementById('year').textContent = new Date().getFullYear();
             lucide.createIcons();
+            
+            // GSAP Entrance Animations
+            switchView('form');
+            const tl = gsap.timeline();
+            tl.fromTo(".night-glass-card", 
+                { opacity: 0, y: 60 },
+                { opacity: 1, y: 0, duration: 1.1, ease: "power4.out" }
+            )
+            .from(".logo-box img", {
+                scale: 0,
+                rotation: 360,
+                duration: 0.9,
+                ease: "elastic.out(1, 0.5)"
+            }, "-=0.6")
+            .from(".text-center h2, .text-center p", {
+                opacity: 0,
+                y: 20,
+                stagger: 0.1,
+                duration: 0.5
+            }, "-=0.4");
+
+            gsap.to(".card-logo", { y: -6, duration: 2.2, repeat: -1, yoyo: true, ease: "sine.inOut" });
             
             try {
                 const settingsRows = await sb.select('settings');
@@ -611,8 +731,8 @@
             
             const teamSelect = document.getElementById('reqTeam');
             const placeholderText = (formConfig.reqTeam && formConfig.reqTeam.placeholder) ? formConfig.reqTeam.placeholder : '';
-            teamSelect.innerHTML = `<option value="" disabled selected>${placeholderText}</option>` + 
-                                   TEAMS.map(t => `<option value="${t}">${t}</option>`).join('');
+            teamSelect.innerHTML = `<option value="" disabled selected>${escapeHTML(placeholderText)}</option>` + 
+                                   TEAMS.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
         }
 
         // --- DRAG AND DROP / FILE HANDLING ---
@@ -679,9 +799,9 @@
                 }
 
                 return `
-                <div class="relative group aspect-square rounded-lg border border-zinc-700 bg-zinc-800 p-1 flex items-center justify-center overflow-hidden">
+                <div class="relative group aspect-square rounded-xl border border-purple-500/20 bg-slate-900/50 p-1 flex items-center justify-center overflow-hidden shadow-inner">
                     ${displayContent}
-                    <button class="absolute top-1 right-1 bg-rose-500/80 text-white rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-md shadow-md" onclick="removeImage(${idx}); event.stopPropagation();">
+                    <button class="absolute top-1.5 right-1.5 bg-rose-500/90 text-white rounded-md p-1.5 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-md shadow-lg" onclick="removeImage(${idx}); event.stopPropagation();">
                         <i data-lucide="x" class="w-3 h-3"></i>
                     </button>
                 </div>
@@ -701,6 +821,7 @@
             // Show the names box if attendees is between 1 and 6
             if (val !== '' && parseInt(val) > 0 && parseInt(val) < 7) {
                 group.classList.remove('hidden');
+                gsap.fromTo(group, { height: 0, opacity: 0 }, { height: "auto", opacity: 1, duration: 0.3 });
             } else {
                 group.classList.add('hidden');
             }
@@ -757,12 +878,16 @@
 
             document.getElementById('previewModal').style.display = 'flex';
             document.getElementById('previewModal').classList.remove('hidden');
+            gsap.fromTo("#previewModal .night-glass-card", { scale: 0.9, opacity: 0, y: 20 }, { scale: 1, opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.2)" });
             lucide.createIcons();
         }
 
         function closePreviewModal() {
-            document.getElementById('previewModal').style.display = 'none';
-            document.getElementById('previewModal').classList.add('hidden');
+            const modal = document.getElementById('previewModal');
+            gsap.to(modal.querySelector('.night-glass-card'), { scale: 0.9, opacity: 0, y: 20, duration: 0.3, onComplete: () => {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }});
         }
 
         async function processSubmission() {
@@ -784,7 +909,7 @@
 
             const btn = document.getElementById('confirmSubmitBtn');
             const loader = document.getElementById('submitModalLoader');
-            btn.disabled = true; loader.style.display = 'block';
+            btn.disabled = true; loader.style.display = 'inline-block';
 
             try {
                 showToast("Submitting receipt...", false);
@@ -852,6 +977,14 @@
                 // If they click 'Submit Another' while syncing, just go back to form
                 // The sync UI handles itself.
             }
+            // Clear inputs
+            ['reqName', 'reqTeam', 'reqDate', 'reqAmount', 'reqCard', 'reqReason', 'reqAttendees', 'reqAttendeeNames'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            document.getElementById('attendeeNamesGroup').classList.add('hidden');
+            currentUploadedImages = [];
+            renderPreviews();
             switchView('form');
         }
 
@@ -865,19 +998,26 @@
             if(target) {
                 target.style.display = 'block';
                 setTimeout(() => target.classList.add('active'), 10);
+                gsap.fromTo(target, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.4 });
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         // --- ADMIN AUTH & DASHBOARD ---
         function showGate() { 
-            document.getElementById('gateModal').style.display = 'flex'; 
-            document.getElementById('gateModal').classList.remove('hidden');
+            const modal = document.getElementById('gateModal');
+            modal.style.display = 'flex'; 
+            modal.classList.remove('hidden');
+            gsap.fromTo("#gateBackdrop", { opacity: 0 }, { opacity: 1, duration: 0.3 });
+            gsap.fromTo("#gateCard", { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(1.5)" });
         }
         function hideGate() { 
-            document.getElementById('gateModal').style.display = 'none'; 
-            document.getElementById('gateModal').classList.add('hidden');
-            document.getElementById('adminPass').value = ""; 
+            gsap.to("#gateModal", {opacity: 0, duration: 0.2, onComplete: () => {
+                const modal = document.getElementById('gateModal');
+                modal.style.display = 'none'; 
+                modal.classList.add('hidden');
+                document.getElementById('adminPass').value = ""; 
+            }});
         }
 
         async function verifyAdmin() {
@@ -886,7 +1026,7 @@
 
             const btn = document.getElementById('gateBtn');
             const loader = document.getElementById('gateLoader');
-            btn.disabled = true; loader.style.display = 'block';
+            btn.disabled = true; loader.style.display = 'inline-block';
 
             try {
                 const pwRows = await sb.select('settings', 'key=eq.AdminPassword');
@@ -938,33 +1078,33 @@
                         const globalIdx = receipts.findIndex(x => x.id === r.id);
                         
                         return `
-                            <div class="flex justify-between items-center py-3 border-b border-zinc-800/50 last:border-0 cursor-pointer hover:bg-zinc-800/50 rounded-lg px-2 -mx-2 transition gap-2" onclick="viewReceipt(${globalIdx})">
+                            <div class="flex justify-between items-center py-3 border-b border-purple-500/10 last:border-0 cursor-pointer hover:bg-slate-900/40 rounded-xl px-3 -mx-3 transition gap-3 group" onclick="viewReceipt(${globalIdx})">
                                 <div class="flex flex-col flex-1 min-w-0">
-                                    <span class="text-sm font-bold text-white truncate">${escapeHTML(r.name)}</span>
-                                    <span class="text-xs text-zinc-400 truncate">${escapeHTML(r.reason)}</span>
-                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
+                                    <span class="text-sm font-semibold truncate group-hover:text-white transition-colors text-purple-100">${escapeHTML(r.name)}</span>
+                                    <span class="text-[10px] text-purple-300/60 uppercase font-bold tracking-wider truncate mt-0.5">${escapeHTML(r.reason)}</span>
+                                    <span class="text-[9px] text-purple-300/40 mt-1">${dateStr}</span>
                                 </div>
-                                <span class="text-sm font-bold text-emerald-400 shrink-0 bg-emerald-900/20 px-2 py-1 rounded border border-emerald-500/20">$${parseFloat(r.amount).toFixed(2)}</span>
+                                <span class="text-xs font-bold text-emerald-400 shrink-0 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 shadow-inner">$${parseFloat(r.amount).toFixed(2)}</span>
                             </div>
                         `;
                     }).join('');
                 } else {
-                    listHTML = `<div class="text-xs text-zinc-500 italic py-2">No receipts submitted yet.</div>`;
+                    listHTML = `<div class="text-[11px] text-purple-300/40 uppercase font-bold tracking-widest py-3 text-center">No receipts submitted yet.</div>`;
                 }
 
                 grid.innerHTML += `
-                    <div class="glass-card rounded-2xl border-white/5 flex flex-col transition hover:-translate-y-1 hover:border-purple-500/30 overflow-hidden">
-                        <div class="p-4 sm:p-5 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center gap-3">
+                    <div class="night-glass-card-subtle rounded-[24px] border-purple-400/30 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:border-purple-400/60 hover:shadow-[0_10px_30px_rgba(124,58,237,0.2)] overflow-hidden">
+                        <div class="p-5 border-b border-purple-500/20 bg-slate-900/30 flex justify-between items-center gap-3">
                             <div class="flex items-center gap-3 flex-1 min-w-0">
-                                <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700 text-purple-400 shrink-0"><i data-lucide="receipt" class="w-4 h-4"></i></div>
-                                <span class="font-bold text-white truncate">${escapeHTML(teamName)}</span>
+                                <div class="w-10 h-10 rounded-2xl bg-purple-500/20 flex items-center justify-center border border-purple-400/30 text-purple-300 shrink-0 shadow-inner"><i data-lucide="receipt" class="w-4 h-4"></i></div>
+                                <span class="font-extrabold text-white break-words leading-tight tracking-wide">${escapeHTML(teamName)}</span>
                             </div>
                             <div class="text-right shrink-0">
-                                <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Team Total</div>
-                                <div class="text-xl font-black text-emerald-400">$${totalSpent.toFixed(2)}</div>
+                                <div class="text-[9px] text-purple-300 uppercase font-bold tracking-widest mb-0.5">Team Total</div>
+                                <div class="text-2xl font-black text-emerald-400 drop-shadow-sm">$${totalSpent.toFixed(2)}</div>
                             </div>
                         </div>
-                        <div class="p-4 flex-1 flex flex-col gap-1 max-h-[300px] overflow-y-auto">${listHTML}</div>
+                        <div class="p-4 flex-1 flex flex-col gap-1 max-h-[300px] overflow-y-auto custom-scroll">${listHTML}</div>
                     </div>
                 `;
             });
@@ -976,7 +1116,11 @@
             const r = receipts[idx];
             document.getElementById('modalName').textContent = r.name;
             document.getElementById('modalTeam').textContent = r.team;
-            document.getElementById('modalDate').textContent = r.date;
+            
+            const dateParts = r.date.split('-');
+            const displayDate = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}` : r.date;
+            document.getElementById('modalDate').textContent = displayDate;
+            
             document.getElementById('modalAmount').textContent = "$" + parseFloat(r.amount).toFixed(2);
             document.getElementById('modalCard').textContent = "*" + r.card;
             document.getElementById('modalReason').textContent = r.reason;
@@ -993,23 +1137,27 @@
 
             if (parsedPhotos.length > 0) {
                 photoArea.innerHTML = parsedPhotos.map((url, i) => `
-                    <a href="${url}" target="_blank" class="block aspect-square rounded-xl bg-zinc-800 border border-zinc-700 hover:border-purple-500/50 overflow-hidden flex flex-col items-center justify-center transition group relative text-center p-2">
-                        <i data-lucide="external-link" class="w-6 h-6 text-zinc-400 group-hover:text-purple-400 mb-2 transition"></i>
-                        <span class="text-[10px] text-zinc-300 font-bold uppercase tracking-wider">View File ${i + 1}</span>
+                    <a href="${url}" target="_blank" class="block aspect-square rounded-2xl bg-slate-900/60 border border-purple-500/20 hover:border-purple-400/50 overflow-hidden flex flex-col items-center justify-center transition-all group relative text-center p-2 shadow-inner hover:scale-105">
+                        <i data-lucide="external-link" class="w-6 h-6 text-purple-300/50 group-hover:text-purple-300 mb-2 transition-colors"></i>
+                        <span class="text-[10px] text-purple-200 font-bold uppercase tracking-widest">View File ${i + 1}</span>
                     </a>
                 `).join('');
             } else {
-                photoArea.innerHTML = `<div class="col-span-2 text-xs text-zinc-500 italic">No files attached.</div>`;
+                photoArea.innerHTML = `<div class="col-span-2 text-xs text-purple-200/50 italic py-4 text-center border border-dashed border-purple-400/20 rounded-xl">No files attached.</div>`;
             }
             
             lucide.createIcons();
             document.getElementById('receiptModal').style.display = 'flex';
             document.getElementById('receiptModal').classList.remove('hidden');
+            gsap.fromTo("#receiptModal .night-glass-card", { scale: 0.9, opacity: 0, y: 20 }, { scale: 1, opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.2)" });
         }
 
         function closeReceiptModal() {
-            document.getElementById('receiptModal').style.display = 'none';
-            document.getElementById('receiptModal').classList.add('hidden');
+            const modal = document.getElementById('receiptModal');
+            gsap.to(modal.querySelector('.night-glass-card'), { scale: 0.9, opacity: 0, y: 20, duration: 0.3, onComplete: () => {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }});
         }
 
         // --- ADMIN SETTINGS (STAFF, TEAMS, QUESTIONS) ---
@@ -1041,7 +1189,7 @@
             }
 
             const loader = document.getElementById('saveSettingsLoader');
-            if(loader) loader.style.display = 'block';
+            if(loader) loader.style.display = 'inline-block';
             
             try {
                 await sb.upsert('settings', updates, 'key');
@@ -1090,19 +1238,21 @@
         function renderSettingsPanel() {
             document.getElementById('teamCount').textContent = TEAMS.length;
             document.getElementById('settings-teamList').innerHTML = TEAMS.map((t, idx) => `
-                <div class="flex justify-between items-center bg-zinc-900 p-2.5 rounded-lg border border-zinc-800">
-                    <span class="text-sm font-medium">${escapeHTML(t)}</span>
-                    <button class="text-rose-500 hover:text-rose-400" onclick="removeTeam(${idx})"><i data-lucide="x" class="w-4 h-4"></i></button>
+                <div class="flex items-center justify-between night-glass-card-subtle p-2.5 rounded-xl border border-purple-400/20 transition-all hover:border-purple-400/50 mb-2">
+                    <span class="text-sm font-bold text-white px-1">${escapeHTML(t)}</span>
+                    <button class="text-rose-400 hover:text-white bg-slate-900/50 hover:bg-rose-600/40 p-2 rounded-lg transition" onclick="removeTeam(${idx})"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
                 </div>
             `).join('');
 
             document.getElementById('staffCount').textContent = staff.length;
             document.getElementById('settings-staffList').innerHTML = staff.map((s, idx) => `
-                <div class="bg-zinc-900 p-2.5 rounded-lg border border-zinc-800 flex flex-col gap-1 relative group">
-                    <button class="absolute top-2 right-2 text-rose-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity" onclick="removeStaff(${idx})"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    <span class="text-sm font-bold">${escapeHTML(s.name)}</span>
-                    <span class="text-xs text-zinc-400">${escapeHTML(s.email)}</span>
-                    <span class="text-[10px] text-purple-400 uppercase font-bold mt-1 tracking-wider">${s.teams.join(', ')}</span>
+                <div class="flex flex-col night-glass-card-subtle p-3 rounded-xl border border-purple-400/20 gap-1.5 transition-all hover:border-purple-400/50 mb-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-white font-bold">${escapeHTML(s.name)}</span>
+                        <button class="text-rose-400 hover:text-white bg-slate-900/50 hover:bg-rose-600/40 p-2 rounded-lg transition" onclick="removeStaff(${idx})"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                    <div class="text-[11px] text-purple-200/70 font-medium">${escapeHTML(s.email)}</div>
+                    <div class="text-[9px] text-purple-300 mt-1 uppercase font-bold tracking-widest bg-slate-900/50 px-2 py-1 rounded border border-purple-500/20 w-fit">${s.teams.join(', ')}</div>
                 </div>
             `).join('');
 
@@ -1120,10 +1270,10 @@
             cList.innerHTML = mappings.map(m => {
                 const conf = formConfig[m.id];
                 return `
-                <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800 flex flex-col gap-2">
-                    <div class="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">${m.title}</div>
-                    <input type="text" id="config_${m.id}_label" class="control-item !p-2 !text-sm" value="${escapeHTML(conf.label)}" title="Label" />
-                    ${m.id !== 'reqTeam' && m.id !== 'reqDate' ? `<input type="text" id="config_${m.id}_placeholder" class="control-item !p-2 !text-sm" value="${escapeHTML(conf.placeholder)}" title="Placeholder" />` : ''}
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-purple-400/20 flex flex-col gap-3 shadow-inner">
+                    <div class="text-[10px] text-purple-300 uppercase font-bold tracking-widest border-b border-purple-500/20 pb-2">${m.title}</div>
+                    <input type="text" id="config_${m.id}_label" class="control-input !mb-0 !py-2 !text-sm" value="${escapeHTML(conf.label)}" title="Label" />
+                    ${m.id !== 'reqTeam' && m.id !== 'reqDate' ? `<input type="text" id="config_${m.id}_placeholder" class="control-input !mb-0 !py-2 !text-sm" value="${escapeHTML(conf.placeholder)}" title="Placeholder" />` : ''}
                 </div>
                 `;
             }).join('');
@@ -1148,7 +1298,11 @@
                 t.classList.add('!border-purple-500/50');
             }
             t.style.display = 'block'; 
-            setTimeout(() => t.style.display = 'none', 3500); 
+            gsap.fromTo(t, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3 });
+            
+            setTimeout(() => {
+                gsap.to(t, { opacity: 0, y: 20, duration: 0.3, onComplete: () => t.style.display = 'none' });
+            }, 3500); 
         }
 
         // --- CONFIRMATION & DELETION ---
@@ -1158,14 +1312,20 @@
             document.getElementById('confirmModalMsg').innerHTML = msg;
             document.getElementById('confirmModalActionBtn').querySelector('span').textContent = btnText;
             confirmActionCallback = callback;
-            document.getElementById('confirmModal').style.display = 'flex';
-            document.getElementById('confirmModal').classList.remove('hidden');
+            
+            const modal = document.getElementById('confirmModal');
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+            gsap.fromTo(modal.querySelector('.night-glass-card'), { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(1.5)" });
         }
         
         function closeConfirmModal() {
-            document.getElementById('confirmModal').style.display = 'none';
-            document.getElementById('confirmModal').classList.add('hidden');
-            confirmActionCallback = null;
+            const modal = document.getElementById('confirmModal');
+            gsap.to(modal.querySelector('.night-glass-card'), { scale: 0.8, opacity: 0, duration: 0.2, onComplete: () => {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+                confirmActionCallback = null;
+            }});
         }
         
         document.getElementById('confirmModalActionBtn').addEventListener('click', () => {
@@ -1184,7 +1344,7 @@
         async function executeDeleteReceipt(receiptId) {
             const btn = document.getElementById('confirmModalActionBtn');
             const loader = document.getElementById('confirmLoader');
-            btn.disabled = true; loader.style.display = 'block';
+            btn.disabled = true; loader.style.display = 'inline-block';
 
             try {
                 await sb.delete('receipts', `id=eq.${encodeURIComponent(receiptId)}`);
@@ -1211,8 +1371,8 @@
                 const timeLeft = animationEnd - Date.now();
                 if (timeLeft <= 0) return clearInterval(interval);
                 const particleCount = 50 * (timeLeft / duration);
-                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }, colors: ['#0A84FF', '#BF5AF2', '#34d399'] }));
-                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }, colors: ['#0A84FF', '#BF5AF2', '#34d399'] }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }, colors: ['#a855f7', '#6366f1', '#2563eb'] }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }, colors: ['#a855f7', '#6366f1', '#2563eb'] }));
             }, 250);
         }
 
