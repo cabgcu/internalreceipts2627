@@ -356,7 +356,14 @@
                     </div>
                     <h2 class="text-3xl font-extrabold mb-3 text-white tracking-tight">Submitted!</h2>
                     <p class="text-purple-200/80 mb-6 text-sm leading-relaxed">Your receipt has been successfully logged.</p>
-                    
+
+                    <div id="successRecipients" class="night-glass-card-subtle p-5 rounded-[24px] border-purple-400/30 mb-6 text-left hidden shadow-inner">
+                        <div class="text-[10px] text-purple-200/80 uppercase font-bold tracking-widest mb-3 flex items-center gap-2">
+                            <i data-lucide="mail" class="w-3.5 h-3.5"></i> Notification Emailed To
+                        </div>
+                        <div id="successRecipientsList" class="flex flex-col gap-2"></div>
+                    </div>
+
                     <div class="night-glass-card-subtle !bg-emerald-950/40 !border-emerald-500/40 rounded-[24px] p-5 mb-8 flex flex-col items-center justify-center gap-2 shadow-lg">
                         <i data-lucide="check-circle-2" class="w-6 h-6 text-emerald-400 mb-1"></i>
                         <span class="text-sm font-bold text-emerald-400 tracking-wide uppercase">It is safe to close this tab.</span>
@@ -946,8 +953,9 @@
                 await sb.insert('receipts', record);
                 
                 // 4. FIRE AND FORGET - Ping the GAS backend using sendBeacon (immune to CORS and tab closing)
-                const staffToNotify = staff.filter(s => s.teams.includes(team)).map(s => s.email);
-                
+                const notifiedStaff = staff.filter(s => s.teams.includes(team));
+                const staffToNotify = notifiedStaff.map(s => s.email);
+
                 const payload = JSON.stringify({
                     receiptId: receiptId,
                     record: record,
@@ -960,6 +968,7 @@
                 navigator.sendBeacon(MASTER_WEBHOOK_URL, payload);
 
                 // 5. Update UI instantly
+                renderSuccessRecipients(notifiedStaff);
                 fireConfetti();
                 closePreviewModal();
                 switchView('success');
@@ -970,6 +979,25 @@
             } finally {
                 btn.disabled = false; loader.style.display = 'none';
             }
+        }
+
+        function renderSuccessRecipients(notifiedStaff) {
+            const container = document.getElementById('successRecipients');
+            const list = document.getElementById('successRecipientsList');
+
+            if (!notifiedStaff || notifiedStaff.length === 0) {
+                container.classList.add('hidden');
+                list.innerHTML = '';
+                return;
+            }
+
+            list.innerHTML = notifiedStaff.map(s => `
+                <div class="flex justify-between items-center gap-3 text-sm border-b border-purple-500/10 last:border-b-0 pb-2 last:pb-0">
+                    <span class="text-white font-semibold">${escapeHTML(s.name)}</span>
+                    <span class="text-purple-300 font-medium text-xs break-all text-right">${escapeHTML(s.email)}</span>
+                </div>
+            `).join('');
+            container.classList.remove('hidden');
         }
 
         function resetForm() {
@@ -985,6 +1013,7 @@
             document.getElementById('attendeeNamesGroup').classList.add('hidden');
             currentUploadedImages = [];
             renderPreviews();
+            renderSuccessRecipients(null);
             switchView('form');
         }
 
