@@ -27,6 +27,9 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- heic2any: converts iPhone HEIC/HEIF photos to JPG in-browser -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -329,8 +332,8 @@
                         <div id="dragDropZone" class="upload-zone rounded-[24px] p-8 text-center cursor-pointer flex flex-col items-center justify-center min-h-[160px] shadow-inner" onclick="document.getElementById('fileInput').click()">
                             <i data-lucide="upload-cloud" class="w-10 h-10 text-purple-400 mb-3 drop-shadow-md"></i>
                             <div class="text-white font-bold text-sm mb-1 tracking-wide">Browse Files or Drag & Drop</div>
-                            <div class="text-purple-200/60 text-xs">Images (JPG/PNG) & Documents (PDF) accepted</div>
-                            <input type="file" id="fileInput" class="hidden" multiple accept="image/*,.pdf,.doc,.docx" onchange="handleFiles(this.files)" />
+                            <div class="text-purple-200/60 text-xs">Images (JPG/PNG/HEIC) & Documents (PDF) accepted — HEIC photos auto-convert to JPG</div>
+                            <input type="file" id="fileInput" class="hidden" multiple accept="image/*,.heic,.heif,.pdf,.doc,.docx" onchange="handleFiles(this.files)" />
                         </div>
                         
                         <!-- Uploaded Preview Area -->
@@ -765,23 +768,46 @@
             }, false);
         }
 
-        function handleFiles(files) {
-            Array.from(files).forEach(file => {
+        async function handleFiles(files) {
+            for (const file of Array.from(files)) {
+                await processUploadedFile(file);
+            }
+        }
+
+        async function processUploadedFile(file) {
+            let workingFile = file;
+            const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name);
+
+            if (isHeic) {
+                try {
+                    showToast(`Converting ${file.name} to JPG...`);
+                    const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+                    const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
+                    workingFile = new File([jpegBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+                } catch (err) {
+                    console.error('HEIC conversion failed:', err);
+                    showToast(`Could not convert ${file.name} — please try a JPG or PNG instead.`, true);
+                    return;
+                }
+            }
+
+            return new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-                    const isDoc = file.type.includes('word') || file.name.toLowerCase().endsWith('.doc') || file.name.toLowerCase().endsWith('.docx');
-                    
+                    const isPDF = workingFile.type === 'application/pdf' || workingFile.name.toLowerCase().endsWith('.pdf');
+                    const isDoc = workingFile.type.includes('word') || workingFile.name.toLowerCase().endsWith('.doc') || workingFile.name.toLowerCase().endsWith('.docx');
+
                     currentUploadedImages.push({
-                        name: file.name,
-                        type: file.type,
+                        name: workingFile.name,
+                        type: workingFile.type,
                         data: e.target.result, // Data URL
                         isPDF: isPDF,
                         isDoc: isDoc
                     });
                     renderPreviews();
+                    resolve();
                 };
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(workingFile);
             });
         }
 
