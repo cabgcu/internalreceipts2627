@@ -128,6 +128,8 @@
         }
         .modern-input::placeholder { color: var(--text-dim); }
         .modern-input:focus { border-color: #52525b; }
+        .modern-input.invalid { border-color: var(--danger-border); }
+        .field-error { color: var(--danger-text); font-size: 12px; font-weight: 500; margin-top: 6px; }
         textarea.modern-input { padding: 12px 16px; height: auto; min-height: 90px; resize: vertical; }
         select.modern-input {
             appearance: none; -webkit-appearance: none;
@@ -371,7 +373,8 @@
 
                     <div class="form-group">
                         <label for="reqReason" id="lbl_reqReason" class="form-label">Event Name and/or Reason for Expense *</label>
-                        <input type="text" id="reqReason" class="modern-input" placeholder="e.g. CAB Supplies for GGT 2026" />
+                        <input type="text" id="reqReason" class="modern-input" placeholder="e.g. CAB Supplies for GGT 2026" oninput="checkReason()" />
+                        <div id="reasonError" class="field-error hidden">Prizes can't be submitted as an internal receipt.</div>
                     </div>
 
                     <div class="form-group">
@@ -690,6 +693,7 @@
         let currentUploadedImages = []; 
         let isMigrating = false; // Prevents leaving page while background sync happens
         let adminPassword = 'Staff49!';
+        const MAX_NAMED_ATTENDEES = 10; // at or below this many attendees, names are required
         let TEAMS = ["Special Events", "Student Markets", "Marketing", "The Arts", "Night Life", "Pastimes"];
         
         let formConfig = {
@@ -863,11 +867,22 @@
             renderPreviews();
         }
 
+        // Prizes aren't reimbursable through this form
+        function mentionsPrize(text) {
+            return /\bprizes?\b/i.test(text || '');
+        }
+
+        function checkReason() {
+            const blocked = mentionsPrize(document.getElementById('reqReason').value);
+            document.getElementById('reqReason').classList.toggle('invalid', blocked);
+            document.getElementById('reasonError').classList.toggle('hidden', !blocked);
+        }
+
         function checkAttendees() {
             const val = document.getElementById('reqAttendees').value;
             const group = document.getElementById('attendeeNamesGroup');
-            // Show the names box if attendees is between 1 and 6
-            if (val !== '' && parseInt(val) > 0 && parseInt(val) < 7) {
+            // Show the names box if attendees is between 1 and MAX_NAMED_ATTENDEES
+            if (val !== '' && parseInt(val) > 0 && parseInt(val) <= MAX_NAMED_ATTENDEES) {
                 group.classList.remove('hidden');
                 gsap.fromTo(group, { height: 0, opacity: 0 }, { height: "auto", opacity: 1, duration: 0.3 });
             } else {
@@ -898,13 +913,18 @@
             let parsedAttendees = parseInt(attendees) || 0;
             let names = '';
             
-            if (attendees !== '' && parsedAttendees > 0 && parsedAttendees < 7) {
+            if (attendees !== '' && parsedAttendees > 0 && parsedAttendees <= MAX_NAMED_ATTENDEES) {
                 names = document.getElementById('reqAttendeeNames').value.trim();
                 if (!names) return showToast("Please list the names of the attendees.", true);
             }
 
             if(!name || !team || !date || !amount || !card || !reason || currentUploadedImages.length === 0) {
                 return showToast("Please fill all required fields and attach at least one file.", true);
+            }
+
+            if (mentionsPrize(reason)) {
+                checkReason();
+                return showToast("Prizes can't be submitted as an internal receipt.", true);
             }
 
             document.getElementById('prevName').textContent = name;
@@ -950,7 +970,7 @@
             let parsedAttendees = parseInt(attendees) || 0;
             
             // Bundle attendee names into the reason if applicable
-            if (attendees !== '' && parsedAttendees > 0 && parsedAttendees < 7) {
+            if (attendees !== '' && parsedAttendees > 0 && parsedAttendees <= MAX_NAMED_ATTENDEES) {
                 const names = document.getElementById('reqAttendeeNames').value.trim();
                 reason += `\n\nAttendee Names: ${names}`;
             }
@@ -1052,6 +1072,7 @@
                 if (el) el.value = '';
             });
             document.getElementById('attendeeNamesGroup').classList.add('hidden');
+            checkReason();
             currentUploadedImages = [];
             renderPreviews();
             renderSuccessRecipients(null);
